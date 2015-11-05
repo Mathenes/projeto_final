@@ -4,7 +4,7 @@ class OperadorLogico
   attr_accessor :prioridade_parentese
   attr_reader :valor
 
-  VALORES = {negacao: '˜', conjuncao: '&', disjuncao: '|', implicacao: '->'}
+  VALORES = {negacao: '~', conjuncao: '&', disjuncao: '|', implicacao: '->'}
   REGEX = /&|\||->|-|>/
   REGEX_UNARIO = /~/
 
@@ -17,8 +17,16 @@ class OperadorLogico
     VALORES.key @valor
   end
 
-  def is_negacao?
+  def is_negation?
     @valor.eql? VALORES[:negacao]
+  end
+
+  def is_conjunction?
+    @valor.eql? VALORES[:conjuncao]
+  end
+
+  def is_disjunction?
+    @valor.eql? VALORES[:disjuncao]
   end
 
   def to_s
