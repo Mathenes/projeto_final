@@ -29,6 +29,10 @@ class OperadorLogico
     @valor.eql? VALORES[:disjuncao]
   end
 
+  def is_implication?
+    @valor.eql? VALORES[:implicacao]
+  end
+
   def to_s
     "Operador Lógico, Tipo: #{tipo}, Prioridade: #{prioridade_parentese}"
   end

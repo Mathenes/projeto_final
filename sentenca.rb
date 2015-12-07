@@ -5,12 +5,15 @@ class Sentenca
   require './constant.rb'
   require 'pry'
 
-  attr_accessor :pai
-  attr_reader :bruta, :classificada, :right_sentence, :left_sentence, :operator, :nivel
+  attr_accessor :pai, :bruta, :classificada, :right_sentence, :left_sentence, :operator, :nivel
+  #attr_reader :bruta, :classificada, :right_sentence, :left_sentence, :operator, :nivel
 
 
-  def initialize(sentence,level=0)
-    if sentence.instance_of? Sentenca
+  def initialize(sentence=nil,level=0)
+    if sentence == nil
+      @nivel = 0
+      @bruta = ""
+    elsif sentence.instance_of? Sentenca
       initialize_with_instance(sentence)
     else
       @nivel = (level == 0) ? level + 1 : level
@@ -46,6 +49,23 @@ class Sentenca
     return false if (sentence1 == nil || sentence2 == nil)
     return false if (sentence1.bruta != sentence2.bruta)
     return Sentenca.equals?(sentence1.left_sentence, sentence2.left_sentence) && Sentenca.equals?(sentence1.right_sentence, sentence2.right_sentence)
+  end
+
+
+  #TODO: Verificar se essa é a melhor forma para negar uma sentença. Pelo menos é a forma mais rápida, pois a outra
+  #forma envolveria atualizar a bruta com uma negação e a partir daí chamar a função agrupar. Mas isso tem um custo
+  #de processamento bem maior, porque teria que estar sempre chamando a função agrupar - que é uma função recursiva.
+  def negated
+    aux = Sentenca.new
+    aux.operator = OperadorLogico.new(OperadorLogico::VALORES[:negacao], self.nivel)
+    aux.nivel = self.nivel
+    aux.right_sentence = Sentenca.new(self)
+    aux.right_sentence.pai = aux
+    aux.bruta = "(#{OperadorLogico::VALORES[:negacao]}#{self.bruta})"
+    aux.left_sentence.update_level if aux.left_sentence
+    aux.right_sentence.update_level if aux.right_sentence
+    aux.classificar_sentenca
+    aux
   end
 
   def copy(sentence)
@@ -275,8 +295,61 @@ class Sentenca
   end
 
 
+  #----------------TRANSFORMATION FUNCTION INTO APNF------------------
 
-  #--------------------------------------------------------
+  def transformation_into_apnf
+    unless @operator.nil?
+      old_left = ( @left_sentence ? Sentenca.new(@left_sentence) : nil )
+      old_right = ( @right_sentence ? Sentenca.new(@right_sentence) : nil )
+
+      if @operator.is_negation?
+        current = @right_sentence
+        unless @right_sentence.operator.nil?
+          case @right_sentence.operator.tipo
+            when :implicacao
+              copy @right_sentence
+              @operator = OperadorLogico.new(OperadorLogico::VALORES[:conjuncao], @operator.prioridade_parentese)
+              @right_sentence = @right_sentence.negated
+              @right_sentence.pai = self
+              update
+            when :conjuncao
+              copy @right_sentence
+              @operator = OperadorLogico.new(OperadorLogico::VALORES[:disjuncao], @operator.prioridade_parentese)
+              @left_sentence = @left_sentence.negated
+              @right_sentence = @right_sentence.negated
+              @right_sentence.pai,@left_sentence.pai  = self,self
+              update
+            when :disjuncao
+              copy @right_sentence
+              @operator = OperadorLogico.new(OperadorLogico::VALORES[:conjuncao], @operator.prioridade_parentese)
+              @left_sentence = @left_sentence.negated
+              @right_sentence = @right_sentence.negated
+              @right_sentence.pai,@left_sentence.pai  = self,self
+              update
+          end
+          @left_sentence.transformation_into_apnf if @left_sentence
+          @right_sentence.transformation_into_apnf
+        end
+      else
+        case @operator.tipo
+          when :implicacao
+            @operator = OperadorLogico.new(OperadorLogico::VALORES[:disjuncao], @operator.prioridade_parentese)
+            @left_sentence = @left_sentence.negated
+            @left_sentence.pai = self
+            update
+        end
+        @left_sentence.transformation_into_apnf
+        @right_sentence.transformation_into_apnf
+      end
+
+      unless Sentenca.equals?(old_left, @left_sentence) and Sentenca.equals?(old_right, @right_sentence)
+        update
+      end
+    end
+    self
+  end
+
+  #----------------------------------------------------------------
 
   protected
 
