@@ -2,7 +2,9 @@
 class Proposicao
 
   attr_accessor :valor, :prioridade_parentese
-  REGEX = /[A-z]+/
+  REGEX = /^(\*)*[A-z]+[0-9]*$/
+  START_OF_NEW_SYMBOL = "*"
+  NEW_SYMBOL_DEFAULT = "t"
 
   def initialize(valor,prioridade_parentese)
     @valor = valor

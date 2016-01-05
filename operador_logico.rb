@@ -5,7 +5,7 @@ class OperadorLogico
   attr_reader :valor
 
   VALORES = {negacao: '~', conjuncao: '&', disjuncao: '|', implicacao: '->'}
-  REGEX = /&|\||->|-|>/
+  REGEX = /^&$|^\|$|^->$|^-$|^>$/
   REGEX_UNARIO = /~/
 
   def initialize(valor,prioridade_parentese)

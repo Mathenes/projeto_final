@@ -8,6 +8,8 @@ class Sentenca
   attr_accessor :pai, :bruta, :classificada, :right_sentence, :left_sentence, :operator, :nivel
   #attr_reader :bruta, :classificada, :right_sentence, :left_sentence, :operator, :nivel
 
+  @@new_symbol_count = 0
+
 
   def initialize(sentence=nil,level=0)
     if sentence == nil
@@ -33,9 +35,33 @@ class Sentenca
     @nivel = sentence.nivel
   end
 
+  def to_s
+    bruta = "Bruta: #{@bruta}"
+    puts bruta
+    puts
+    pai = "Pai: #{@pai.bruta if @pai}"
+    puts pai
+    puts
+    left_sentence = "Left: #{@left_sentence.bruta if @left_sentence}"
+    puts left_sentence
+    puts
+    operator = "Operator: #{@operator.valor if @operator}"
+    puts operator
+    puts
+    right_sentence = "Right: #{@right_sentence.bruta if @right_sentence}"
+    puts right_sentence
+    puts
+    level = "Level: #{@nivel}"
+    puts level
+    puts
+  end
 
   def is_literal?
-    @left_sentence.nil? and @right_sentence.nil?
+    if @operator and @operator.is_negation?
+      @right_sentence.is_literal?
+    else
+      @left_sentence.nil? and @right_sentence.nil?
+    end
   end
 
   def is_constant?
@@ -51,6 +77,35 @@ class Sentenca
     return Sentenca.equals?(sentence1.left_sentence, sentence2.left_sentence) && Sentenca.equals?(sentence1.right_sentence, sentence2.right_sentence)
   end
 
+  def self.generate_implication_between(sentence1, sentence2)
+    aux = Sentenca.new
+    aux.left_sentence = sentence1
+    aux.right_sentence = sentence2
+    aux.left_sentence.pai, aux.right_sentence.pai = aux, aux
+    aux.nivel = 1
+    aux.operator = OperadorLogico.new(OperadorLogico::VALORES[:implicacao],aux.nivel)
+    aux.update
+    aux
+  end
+
+  def self.generate_disjunction_between(sentence1, sentence2)
+    aux = Sentenca.new
+    aux.left_sentence = sentence1
+    aux.right_sentence = sentence2
+    aux.left_sentence.pai, aux.right_sentence.pai = aux, aux
+    aux.nivel = 1
+    aux.operator = OperadorLogico.new(OperadorLogico::VALORES[:disjuncao],aux.nivel)
+    aux.update
+    aux
+  end
+
+  def propositional_symbols
+    symbols = []
+    @classificada.each do |el|
+      symbols.push el if el.instance_of? Proposicao
+    end
+    symbols
+  end
 
   #TODO: Verificar se essa é a melhor forma para negar uma sentença. Pelo menos é a forma mais rápida, pois a outra
   #forma envolveria atualizar a bruta com uma negação e a partir daí chamar a função agrupar. Mas isso tem um custo
@@ -303,7 +358,6 @@ class Sentenca
       old_right = ( @right_sentence ? Sentenca.new(@right_sentence) : nil )
 
       if @operator.is_negation?
-        current = @right_sentence
         unless @right_sentence.operator.nil?
           case @right_sentence.operator.tipo
             when :implicacao
@@ -349,9 +403,99 @@ class Sentenca
     self
   end
 
-  #----------------------------------------------------------------
+  #-------------------------------------------------------------------
+  #---------------------TRANSFORMATION INTO DSNF-----------------------
+  def transformation_into_dsnf
+    initial = [Sentenca.new(generate_new_symbol)]
+    first_element = Sentenca.generate_implication_between(initial.first, Sentenca.new(self.transformation_into_apnf))
+    universe = [first_element]
+
+    #RULES 1 AND 2 OF THE PAPER
+    first_step_dsnf(universe)
+    #RULE 6 OF THE PAPER
+    second_step_dsnf(universe)
+
+    return {:I => initial, :U => universe}
+  end
+
+  def first_step_dsnf(universe)
+    is_done = false
+    while not is_done
+      is_done = true
+      universe.each_with_index do |el, index|
+        if el.right_sentence.operator
+          case el.right_sentence.operator.tipo
+            #REGRA 1
+            when :conjuncao
+              left_symbol = Sentenca.new(el.left_sentence)              #pega o t
+              formula1 = el.right_sentence.left_sentence                #pega o φ1
+              formula2 = el.right_sentence.right_sentence               #pega o φ2
+              universe.push Sentenca.generate_implication_between(left_symbol, formula1)
+              left_symbol = Sentenca.new(el.left_sentence)              #cria outro t em outra posição da memória
+              universe.push Sentenca.generate_implication_between(left_symbol, formula2)
+              universe.delete_at(index)                                 #tira a sentença do conjunto
+              is_done = false
+
+            #REGRA 2
+            when :disjuncao
+              formula = el.right_sentence
+              unless formula.right_sentence.is_literal?
+                left_symbol = Sentenca.new(el.left_sentence)            #pega o t
+                new_symbol = Sentenca.new(generate_new_symbol)                        #gera novo simbolo t1
+                formula1 = el.right_sentence.left_sentence              #pega o φ1
+                formula2 = el.right_sentence.right_sentence             #pega o φ2
+                aux = Sentenca.generate_disjunction_between(formula1, new_symbol) #gera a disjuncao entre φ1 e o novo simbolo
+                universe.push Sentenca.generate_implication_between(left_symbol, aux)
+                universe.push Sentenca.generate_implication_between(new_symbol, formula2)
+                universe.delete_at(index)
+                is_done = false
+              else
+                unless formula.left_sentence.is_literal?
+                  left_symbol = Sentenca.new(el.left_sentence)            #pega o t
+                  new_symbol = Sentenca.new(generate_new_symbol)                        #gera novo simbolo t1
+                  formula1 = el.right_sentence.right_sentence             #pega o φ2 (neste caso ele é um literal)
+                  formula2 = el.right_sentence.left_sentence              #pega o φ1
+                  aux = Sentenca.generate_disjunction_between(formula1, new_symbol) #gera a disjuncao entre φ1 e o novo simbolo
+                  universe.push Sentenca.generate_implication_between(left_symbol, aux)
+                  universe.push Sentenca.generate_implication_between(new_symbol, formula2)
+                  universe.delete_at(index)
+                  is_done = false
+                end
+              end
+          end
+        end
+      end
+    end
+  end
+
+  def second_step_dsnf(universe)
+    is_done = false
+    while not is_done
+      is_done = true
+      universe.each_with_index do |el, index|
+        if el.operator.is_implication? and el.right_sentence.operator
+          case el.right_sentence.operator.tipo
+            #REGRA 6
+            when :disjuncao
+              left_symbol = Sentenca.new(el.left_sentence).negated                  #pega o ~t
+              disjunction_of_literals = el.right_sentence                           #pega a disjuncao de literais
+              universe.push Sentenca.generate_disjunction_between(left_symbol, disjunction_of_literals)
+              universe.delete_at(index)
+              is_done = false
+          end
+        end
+      end
+    end
+  end
+  #-------------------------------------------------------------------
 
   protected
+
+  def generate_new_symbol
+    new_symbol = Proposicao::START_OF_NEW_SYMBOL + Proposicao::NEW_SYMBOL_DEFAULT + @@new_symbol_count.to_s
+    @@new_symbol_count = @@new_symbol_count.next
+    new_symbol
+  end
 
   def classificar_sentenca
     sentenca_classificada = []
@@ -378,7 +522,10 @@ class Sentenca
         when ( OperadorLogico::REGEX.match char )
           look_ahead(OperadorLogico, index, char, buffer, sentenca_classificada, nivel_parentese)
 
-        when ( Proposicao::REGEX.match char )
+        when ( Proposicao::START_OF_NEW_SYMBOL.eql? char )
+          buffer.concat char
+
+        when ( Proposicao::REGEX.match "#{buffer}#{char}" )
           look_ahead(Proposicao, index, char, buffer, sentenca_classificada, nivel_parentese)
 
         when ( Constant::REGEX.match char )
@@ -390,7 +537,7 @@ class Sentenca
   end
 
   def look_ahead(kclass, index, char, buffer, sentenca_classificada, nivel_parentese)
-    if kclass::REGEX.match( @bruta[index + 1] )
+    if @bruta[index + 1] and kclass::REGEX.match( "#{buffer}#{char}#{@bruta[index + 1]}" )
       buffer.concat char
     else
       sentenca_classificada.push kclass.new(buffer+char,nivel_parentese)
