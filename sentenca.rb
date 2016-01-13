@@ -11,12 +11,12 @@ class Sentenca
   @@new_symbol_count = 0
 
 
-  def initialize(sentence=nil,level=0)
+  def initialize(sentence=nil,father=nil,level=0)
     if sentence == nil
       @nivel = 0
       @bruta = ""
     elsif sentence.instance_of? Sentenca
-      initialize_with_instance(sentence)
+      initialize_with_instance(sentence,father)
     else
       @nivel = (level == 0) ? level + 1 : level
       @bruta = sentence.strip.delete(" ")
@@ -25,14 +25,60 @@ class Sentenca
     end
   end
 
-  def initialize_with_instance(sentence)
-    @pai = sentence.pai
-    @bruta = sentence.bruta
-    @classificada = sentence.classificada
-    @right_sentence = sentence.right_sentence
-    @left_sentence = sentence.left_sentence
-    @operator = sentence.operator
+  def initialize_with_instance(sentence,father)
+    @pai = sentence.pai.nil? ? nil : father
+    @bruta = String.new(sentence.bruta)
+    @classificada = Array.new(sentence.classificada)
+    @right_sentence = sentence.right_sentence.nil? ? nil : Sentenca.new(sentence.right_sentence,self)
+    @left_sentence = sentence.left_sentence.nil? ? nil : Sentenca.new(sentence.left_sentence,self)
+    @operator = sentence.operator.nil? ? nil : OperadorLogico.new(sentence.operator)
     @nivel = sentence.nivel
+  end
+
+  def each(&block)
+    bruta_antiga = self.bruta
+    yield self unless self.nil?
+    self.left_sentence.each{|el|block.call el} if self.left_sentence
+    while not bruta_antiga.eql? self.bruta and not bruta_antiga.nil?
+      bruta_antiga = self.bruta
+      yield self unless self.nil?
+    end
+    self.right_sentence.each{|el|block.call el} if self.right_sentence and not @operator.is_negation?
+    while not bruta_antiga.eql? self.bruta and not bruta_antiga.nil?
+      bruta_antiga = self.bruta
+      yield self unless self.nil?
+    end
+  end
+
+  def left_son?
+    if @pai
+      return Sentenca.equals?(@pai.left_sentence, self)
+    else
+      return false
+    end
+  end
+
+  def right_son?
+    if @pai
+      return Sentenca.equals?(@pai.right_sentence, self)
+    else
+      return false
+    end
+  end
+
+  def delete
+    if self.pai
+      if self.left_son?
+        self.pai.copy(self.pai.right_sentence)
+        self.pai.update
+      elsif self.right_son?
+        self.pai.copy(self.pai.left_sentence)
+        self.pai.update
+      end
+      return true
+    else
+      return false
+    end
   end
 
   def to_s
@@ -125,17 +171,20 @@ class Sentenca
 
   def copy(sentence)
     if sentence.is_literal? or sentence.is_constant?
-      @bruta = sentence.bruta
+      @bruta = String.new(sentence.bruta)
     end
-    @right_sentence = sentence.right_sentence
-    @left_sentence = sentence.left_sentence
-    @left_sentence.pai = self if @left_sentence
-    @right_sentence.pai = self if @right_sentence
-    @operator = sentence.operator
+    @right_sentence = sentence.right_sentence.nil? ? nil : Sentenca.new(sentence.right_sentence,self)
+    @left_sentence = sentence.left_sentence.nil? ? nil : Sentenca.new(sentence.left_sentence,self)
+    #@left_sentence.pai = self if @left_sentence
+    #@right_sentence.pai = self if @right_sentence
+    @operator = sentence.operator.nil? ? nil : OperadorLogico.new(sentence.operator)
   end
 
+  #TODO: VERIFICAR SE É POSSÍVEL UTILIZAR !IS_LITERAL? (DAVA PROBLEMA POIS UM LITERAL NEGADO TB É UM LITERAL E DEVE SER ATUALIZADO)
   def update_bruta_and_classificada
-    @bruta = "("+(@left_sentence.nil? ? "":@left_sentence.bruta) + (@operator.nil? ? "":@operator.valor) + (@right_sentence.nil? ? "":@right_sentence.bruta)+")"
+    unless @left_sentence.nil? and @right_sentence.nil?
+      @bruta = "("+(@left_sentence.nil? ? "":@left_sentence.bruta) + (@operator.nil? ? "":@operator.valor) + (@right_sentence.nil? ? "":@right_sentence.bruta)+")"
+    end
     classificar_sentenca
   end
 
@@ -155,8 +204,9 @@ class Sentenca
     @right_sentence.update_classificada unless @right_sentence.nil?
   end
 
+  #negação é um literal com filho da direita, por isso ao atualizar sua bruta, devemos olhar seu filho da direita
   def update(bruta=nil)
-    unless bruta or is_literal?
+    unless bruta
       update_bruta_and_classificada
       @left_sentence.update_level unless @left_sentence.nil?
       @right_sentence.update_level unless @right_sentence.nil?
@@ -168,7 +218,7 @@ class Sentenca
     end
   end
 
-
+  #---------------------------------------------------------------------------------------------------------------------
   # Método que simplifica as sentenças de acordo com as regras
   # contidas no paper que é base para este projeto;
 
@@ -179,7 +229,7 @@ class Sentenca
       unless @operator.nil?
         old_left = ( @left_sentence ? Sentenca.new(@left_sentence) : nil )
         old_right = ( @right_sentence ? Sentenca.new(@right_sentence) : nil )
-
+                 #binding.pry
         case @operator.tipo
           when :conjuncao
             if is_formula_and_formula?
@@ -222,6 +272,10 @@ class Sentenca
             if is_double_negation?
               copy @right_sentence.right_sentence
               update
+            elsif is_not_bottom?
+              update(Constant::VALORES[:up])
+            elsif is_not_up?
+              update(Constant::VALORES[:bottom])
             end
         end
 
@@ -349,10 +403,35 @@ class Sentenca
     false
   end
 
+  def is_bottom?
+    return (is_constant? and @classificada.first.is_bottom?)
+  end
+
+  def is_up?
+    return (is_constant? and @classificada.first.is_up?)
+  end
+
+  def is_not_bottom?
+    if (@operator and @operator.is_negation?)
+      @right_sentence.is_not_bottom?
+    else
+      return (is_bottom? and @pai and @pai.operator and @pai.operator.is_negation?)
+    end
+  end
+
+  def is_not_up?
+    if (@operator and @operator.is_negation?)
+      @right_sentence.is_not_up?
+    else
+      return (is_up? and @pai and @pai.operator and @pai.operator.is_negation?)
+    end
+  end
+
 
   #----------------TRANSFORMATION FUNCTION INTO APNF------------------
 
   def transformation_into_apnf
+    self.simplification
     unless @operator.nil?
       old_left = ( @left_sentence ? Sentenca.new(@left_sentence) : nil )
       old_right = ( @right_sentence ? Sentenca.new(@right_sentence) : nil )
@@ -382,7 +461,7 @@ class Sentenca
               update
           end
           @left_sentence.transformation_into_apnf if @left_sentence
-          @right_sentence.transformation_into_apnf
+          @right_sentence.transformation_into_apnf if @right_sentence
         end
       else
         case @operator.tipo
@@ -392,8 +471,8 @@ class Sentenca
             @left_sentence.pai = self
             update
         end
-        @left_sentence.transformation_into_apnf
-        @right_sentence.transformation_into_apnf
+        @left_sentence.transformation_into_apnf if @left_sentence
+        @right_sentence.transformation_into_apnf if @right_sentence
       end
 
       unless Sentenca.equals?(old_left, @left_sentence) and Sentenca.equals?(old_right, @right_sentence)
@@ -403,11 +482,11 @@ class Sentenca
     self
   end
 
-  #-------------------------------------------------------------------
+  #--------------------------------------------------------------------
   #---------------------TRANSFORMATION INTO DSNF-----------------------
   def transformation_into_dsnf
     initial = [Sentenca.new(generate_new_symbol)]
-    first_element = Sentenca.generate_implication_between(initial.first, Sentenca.new(self.transformation_into_apnf))
+    first_element = Sentenca.generate_implication_between(Sentenca.new(initial.first), Sentenca.new(self.negated.transformation_into_apnf))
     universe = [first_element]
 
     #RULES 1 AND 2 OF THE PAPER
@@ -415,8 +494,103 @@ class Sentenca
     #RULE 6 OF THE PAPER
     second_step_dsnf(universe)
 
+    universe.each do |el|
+      el.simplification
+    end
+
     return {:I => initial, :U => universe}
   end
+  #--------------------------------------------------------------------
+
+  #Aplication of the resolution rules
+
+  def self.resolution(ires, ures)
+    ires_local = [Sentenca.new(ires.first)]
+    ures_local = []
+    ures.each{|el|ures_local.push Sentenca.new(el)}
+    i,j = 0,1
+    is_done = false
+    if ures.count == 1
+      if Sentenca.comparison(ires_local.first,ures_local.first).nil?
+        ures_local = nil
+      end
+    else
+      while not is_done and i <= ures_local.count-1
+        while not is_done and j <= ures_local.count-1
+          ures_local.push Sentenca.comparison(ures_local[i],ures_local[j])
+          ures_local[i],ures_local[j] = nil, nil
+          ures_local = ures_local.compact
+          if Sentenca.resolution(ires,ures_local)
+            is_done = true
+            ures_local = nil
+          else
+            ures_local = []
+            ures.each{|el|ures_local.push Sentenca.new(el)}
+            j = j.next
+          end
+        end
+        i = i.next
+        j = i + 1
+      end
+    end
+    return ures_local.nil?
+  end
+
+  def self.comparison(sentence1, sentence2)
+    sentence1_aux = sentence1
+    sentence2_aux = sentence2
+    sentence1.each do |el|
+      sentence2.each do |el2|
+        if Sentenca.opposites_literals?(el,el2)
+          if el.delete
+            sentence1.update
+          else
+            sentence1_aux = nil
+          end
+          if el2.delete
+            sentence2.update
+          else
+            sentence2_aux = nil
+          end
+        elsif Sentenca.same_literals?(el,el2)
+          if el2.delete
+            sentence2.update
+          else
+            sentence2_aux = nil
+          end
+        end
+      end
+    end
+    if sentence1_aux.nil? and sentence2_aux.nil?
+      return nil
+    elsif sentence2_aux.nil?
+      return sentence1
+    else
+      return Sentenca.generate_disjunction_between(sentence1, sentence2)
+    end
+  end
+
+  def self.opposites_literals?(sentence1, sentence2)
+    if sentence1.is_literal? and sentence2.is_literal?
+      if sentence1.operator and sentence1.operator.is_negation? and not sentence2.operator
+        if sentence1.right_sentence.bruta.eql? sentence2.bruta
+          return true
+        end
+      elsif sentence2.operator and sentence2.operator.is_negation? and not sentence1.operator
+        if sentence2.right_sentence.bruta.eql? sentence1.bruta
+          return true
+        end
+      end
+    end
+    false
+  end
+
+  def self.same_literals?(sentence1, sentence2)
+    return sentence1.bruta.eql? sentence2.bruta
+  end
+  #----------------------------------------------------PROTECTED--------------------------------------------------------
+
+  protected
 
   def first_step_dsnf(universe)
     is_done = false
@@ -473,23 +647,16 @@ class Sentenca
     while not is_done
       is_done = true
       universe.each_with_index do |el, index|
-        if el.operator.is_implication? and el.right_sentence.operator
-          case el.right_sentence.operator.tipo
-            #REGRA 6
-            when :disjuncao
-              left_symbol = Sentenca.new(el.left_sentence).negated                  #pega o ~t
-              disjunction_of_literals = el.right_sentence                           #pega a disjuncao de literais
-              universe.push Sentenca.generate_disjunction_between(left_symbol, disjunction_of_literals)
-              universe.delete_at(index)
-              is_done = false
-          end
+        if el.operator.is_implication?
+          left_symbol = Sentenca.new(el.left_sentence).negated                  #pega o ~t
+          disjunction_of_literals_or_literal = el.right_sentence                #pega a disjuncao de literais ou o literal
+          universe.push Sentenca.generate_disjunction_between(left_symbol, disjunction_of_literals_or_literal)
+          universe.delete_at(index)
+          is_done = false
         end
       end
     end
   end
-  #-------------------------------------------------------------------
-
-  protected
 
   def generate_new_symbol
     new_symbol = Proposicao::START_OF_NEW_SYMBOL + Proposicao::NEW_SYMBOL_DEFAULT + @@new_symbol_count.to_s
@@ -569,7 +736,7 @@ class Sentenca
         @right_sentence = Sentenca.new(@classificada[index+1].valor,@nivel)
         @right_sentence.pai = self
       else
-        #Exemplo: #(~(a & b))
+        #Exemplo: #(~(a & b)) ou (~(~a))
         index_closed_parenthesis = index_closed_parenthesis(@nivel+1)
         aux = @classificada[index+1..index_closed_parenthesis].map{|el|el.valor}*""
         @right_sentence = Sentenca.new(aux,@nivel+1).agrupar

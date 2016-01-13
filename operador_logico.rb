@@ -8,9 +8,18 @@ class OperadorLogico
   REGEX = /^&$|^\|$|^->$|^-$|^>$/
   REGEX_UNARIO = /~/
 
-  def initialize(valor,prioridade_parentese)
-    @valor = valor
-    @prioridade_parentese = prioridade_parentese
+  def initialize(valor=nil,prioridade_parentese=nil)
+    if valor.instance_of? OperadorLogico
+      initialize_with_instance(valor)
+    else
+      @valor = valor
+      @prioridade_parentese = prioridade_parentese
+    end
+  end
+
+  def initialize_with_instance(operator)
+    @valor = String.new(operator.valor)
+    @prioridade_parentese = operator.prioridade_parentese
   end
 
   def tipo
