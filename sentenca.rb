@@ -15,6 +15,7 @@ class Sentenca
     if sentence == nil
       @nivel = 0
       @bruta = ""
+      @classificada = []
     elsif sentence.instance_of? Sentenca
       initialize_with_instance(sentence,father)
     else
@@ -485,8 +486,11 @@ class Sentenca
   #--------------------------------------------------------------------
   #---------------------TRANSFORMATION INTO DSNF-----------------------
   def transformation_into_dsnf
+    negated_sentence_in_apnf = self.negated.transformation_into_apnf
+    puts "###### APNF ######"
+    puts "#{negated_sentence_in_apnf.bruta}"
     initial = [Sentenca.new(generate_new_symbol)]
-    first_element = Sentenca.generate_implication_between(Sentenca.new(initial.first), Sentenca.new(self.negated.transformation_into_apnf))
+    first_element = Sentenca.generate_implication_between(Sentenca.new(initial.first), Sentenca.new(negated_sentence_in_apnf))
     universe = [first_element]
 
     #RULES 1 AND 2 OF THE PAPER
@@ -501,74 +505,6 @@ class Sentenca
     return {:I => initial, :U => universe}
   end
   #--------------------------------------------------------------------
-
-  #Aplication of the resolution rules
-
-  def self.resolution(ires, ures)
-    ires_local = [Sentenca.new(ires.first)]
-    ures_local = []
-    ures.each{|el|ures_local.push Sentenca.new(el)}
-    i,j = 0,1
-    is_done = false
-    if ures.count == 1
-      if Sentenca.comparison(ires_local.first,ures_local.first).nil?
-        ures_local = nil
-      end
-    else
-      while not is_done and i <= ures_local.count-1
-        while not is_done and j <= ures_local.count-1
-          ures_local.push Sentenca.comparison(ures_local[i],ures_local[j])
-          ures_local[i],ures_local[j] = nil, nil
-          ures_local = ures_local.compact
-          if Sentenca.resolution(ires,ures_local)
-            is_done = true
-            ures_local = nil
-          else
-            ures_local = []
-            ures.each{|el|ures_local.push Sentenca.new(el)}
-            j = j.next
-          end
-        end
-        i = i.next
-        j = i + 1
-      end
-    end
-    return ures_local.nil?
-  end
-
-  def self.comparison(sentence1, sentence2)
-    sentence1_aux = sentence1
-    sentence2_aux = sentence2
-    sentence1.each do |el|
-      sentence2.each do |el2|
-        if Sentenca.opposites_literals?(el,el2)
-          if el.delete
-            sentence1.update
-          else
-            sentence1_aux = nil
-          end
-          if el2.delete
-            sentence2.update
-          else
-            sentence2_aux = nil
-          end
-        elsif Sentenca.same_literals?(el,el2)
-          if el2.delete
-            sentence2.update
-          else
-            sentence2_aux = nil
-          end
-        end
-      end
-    end
-    if sentence1_aux.nil? and sentence2_aux.nil?
-      return nil
-    elsif sentence2_aux.nil?
-      return sentence1
-    else
-      return Sentenca.generate_disjunction_between(sentence1, sentence2)
-    end
-  end
 
   def self.opposites_literals?(sentence1, sentence2)
     if sentence1.is_literal? and sentence2.is_literal?
@@ -845,4 +781,77 @@ class Sentenca
     end
   end
 
+
+
+
+  ##Aplication of the resolution rules
+  ##PRIMEIRA RESOLUÇÃO
+  #def self.resolution(ires, ures)
+  #  ires_local = [Sentenca.new(ires.first)]
+  #  ures_local = []
+  #  ures.each{|el|ures_local.push Sentenca.new(el)}
+  #  i,j = 0,1
+  #  is_done = false
+  #
+  #  puts "--------------------------------------------------------"
+  #  ires_local.map{|i| puts "#{i.bruta}     [I]"}
+  #  ures_local.map{|i| puts "#{i.bruta}     [U]"}
+  #  puts "--------------------------------------------------------"
+  #
+  #  if ures.count == 1
+  #    if Sentenca.comparison(ires_local.first,ures_local.first).nil?
+  #      ures_local = nil
+  #    end
+  #  else
+  #    while not is_done and i <= ures_local.count-1
+  #      while not is_done and j <= ures_local.count-1
+  #
+  #        if ures_local[i].is_literal?
+  #          puts "###### PAR ######"
+  #          puts "#{ires_local.first.bruta}  [I]"
+  #          puts "#{ures_local[j].bruta}  [U]"
+  #          if Sentenca.comparison(ires_local.first,ures_local[i]).nil?
+  #            is_done = true
+  #            ures_local = nil
+  #          end
+  #        elsif ures_local[j].is_literal?
+  #          puts "###### PAR ######"
+  #          puts "#{ires_local.first.bruta}  [I]"
+  #          puts "#{ures_local[j].bruta}  [U]"
+  #          if Sentenca.comparison(ires_local.first,ures_local[j]).nil?
+  #            is_done = true
+  #            ures_local = nil
+  #          end
+  #        else
+  #          puts "###### PAR ######"
+  #          puts "#{ures_local[i].bruta}  [U]"
+  #          puts "#{ures_local[j].bruta}  [U]"
+  #          ures_local.push Sentenca.comparison(ures_local[i],ures_local[j])
+  #          ures_local[i],ures_local[j] = nil, nil
+  #          ures_local = ures_local.compact
+  #        end
+  #
+  #        if not is_done
+  #          if Sentenca.resolution(ires_local,ures_local)
+  #            is_done = true
+  #            ures_local = nil
+  #          else
+  #            puts "###### BACK ######"
+  #            ures_local = []
+  #            ures.each{|el|ures_local.push Sentenca.new(el)}
+  #
+  #            puts "---------------VOLTOU PARA A CONFIGURAÇÃO---------------"
+  #            ires_local.map{|i| puts "#{i.bruta}     [I]"}
+  #            ures_local.map{|i| puts "#{i.bruta}     [U]"}
+  #            puts "--------------------------------------------------------"
+  #            j = j.next
+  #          end
+  #        end
+  #      end
+  #      i = i.next
+  #      j = i + 1
+  #    end
+  #  end
+  #  return ures_local.nil?
+  #end
 end
