@@ -1,5 +1,5 @@
 #encoding: UTF-8
-class Parentese
+class Parenthesis
 
   attr_accessor :prioridade
   attr_reader :valor
