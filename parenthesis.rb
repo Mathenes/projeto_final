@@ -1,29 +1,29 @@
 #encoding: UTF-8
 class Parenthesis
 
-  attr_accessor :prioridade
-  attr_reader :valor
+  attr_accessor :level
+  attr_reader :value
 
-  VALORES = {abre: '(', fecha: ')'}
+  VALUES = {open: '(', close: ')'}
 
   def initialize(valor)
-    @valor = valor
+    @value = valor
   end
 
-  def tipo
-    VALORES.key @valor
+  def type
+    VALUES.key @value
   end
 
-  def is_abre_parentese?
-    @valor.eql? VALORES[:abre]
+  def is_open_parenthesis?
+    @value.eql? VALUES[:open]
   end
 
-  def is_fecha_parentese?
-    @valor.eql? VALORES[:fecha]
+  def is_close_parenthesis?
+    @value.eql? VALUES[:close]
   end
 
   def to_s
-    "Parêntese, Tipo: #{tipo}, Prioridade: #{prioridade}"
+    "Parenthesis, Type: #{type}, Level: #{@level}"
   end
 
 end

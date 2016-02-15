@@ -1,28 +1,26 @@
 class Constant
-  attr_accessor :prioridade_parentese
   attr_reader :valor
 
-  VALORES = {bottom: '0', up: '1'}
+  VALUES = {bottom: '0', up: '1'}
   REGEX = /0|1/
 
-  def initialize(valor,prioridade_parentese)
-    @valor = valor
-    @prioridade_parentese = prioridade_parentese
+  def initialize(value)
+    @value = value
   end
 
   def tipo
-    VALORES.key @valor
+    VALUES.key @value
   end
 
   def is_up?
-    @valor.eql? VALORES[:up]
+    @value.eql? VALUES[:up]
   end
 
   def is_bottom?
-    @valor.eql? VALORES[:bottom]
+    @value.eql? VALUES[:bottom]
   end
 
   def to_s
-    "#{self.name}, Tipo: #{tipo}, Prioridade: #{prioridade_parentese}"
+    "Constant, Tipo: #{tipo}"
   end
 end

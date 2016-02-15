@@ -1,7 +1,7 @@
 class Sentence
-  require './proposicao.rb'
-  require './operador_logico.rb'
-  require './parentese.rb'
+  require './proposition.rb'
+  require './logical_operator.rb'
+  require './parenthesis.rb'
   require './constant.rb'
   require 'pry'
 

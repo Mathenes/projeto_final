@@ -1,17 +1,17 @@
 #encoding: UTF-8
 class LogicalOperator
 
-  attr_reader :valor
+  attr_reader :value
 
-  VALORES = {negacao: '~', conjuncao: '&', disjuncao: '|', implicacao: '->'}
+  VALUES = {negation: '~', conjunction: '&', disjunction: '|', implication: '->'}
   REGEX = /^&$|^\|$|^->$|^-$|^>$/
-  REGEX_UNARIO = /~/
+  REGEX_UNARY = /~/
 
-  def initialize(valor=nil)
-    if valor.instance_of? LogicalOperator
-      initialize_with_instance(valor)
+  def initialize(value=nil)
+    if value.instance_of? LogicalOperator
+      initialize_with_instance(value)
     else
-      @value = valor
+      @value = value
     end
   end
 
@@ -19,28 +19,28 @@ class LogicalOperator
     @value = String.new(operator.value)
   end
 
-  def tipo
-    VALORES.key @value
+  def type
+    VALUES.key @value
   end
 
   def is_negation?
-    @value.eql? VALORES[:negacao]
+    @value.eql? VALUES[:negation]
   end
 
   def is_conjunction?
-    @value.eql? VALORES[:conjuncao]
+    @value.eql? VALUES[:conjunction]
   end
 
   def is_disjunction?
-    @value.eql? VALORES[:disjuncao]
+    @value.eql? VALUES[:disjunction]
   end
 
   def is_implication?
-    @value.eql? VALORES[:implicacao]
+    @value.eql? VALUES[:implication]
   end
 
   def to_s
-    "Operador Lógico, Tipo: #{tipo}"
+    "Logical Operator, Type: #{type}"
   end
 
 end
