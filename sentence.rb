@@ -40,12 +40,12 @@ class Sentence
     old_raw = @raw
     yield self unless self.nil?
     self.left_sentence.each{|el|block.call el} if self.left_sentence
-    while not old_raw.eql?(@raw) and not old_raw.nil?
+    while (not old_raw.eql?(@raw)) && (not old_raw.nil?)
       old_raw = @raw
       yield self unless self.nil?
     end
-    self.right_sentence.each{|el|block.call el} if self.right_sentence and not @operator.is_negation?
-    while not old_raw.eql? self.raw and not old_raw.nil?
+    self.right_sentence.each{|el|block.call el} if (self.right_sentence) && (not @operator.is_negation?)
+    while (not old_raw.eql?(self.raw)) && (not old_raw.nil?)
       old_raw = self.raw
       yield self unless self.nil?
     end
@@ -104,10 +104,10 @@ class Sentence
   end
 
   def is_literal?
-    if @operator and @operator.is_negation?
+    if @operator && @operator.is_negation?
       @right_sentence.is_literal?
     else
-      @left_sentence.nil? and @right_sentence.nil?
+      @left_sentence.nil? && @right_sentence.nil?
     end
   end
 
@@ -171,7 +171,7 @@ class Sentence
   end
 
   def copy(sentence)
-    if sentence.is_literal? or sentence.is_constant?
+    if sentence.is_literal?||sentence.is_constant?
       @raw = String.new(sentence.raw)
     end
     @right_sentence = sentence.right_sentence.nil? ? nil : Sentence.new(sentence.right_sentence,self)
@@ -183,7 +183,7 @@ class Sentence
 
   #TODO: VERIFICAR SE É POSSÍVEL UTILIZAR !IS_LITERAL? (DAVA PROBLEMA POIS UM LITERAL NEGADO TB É UM LITERAL E DEVE SER ATUALIZADO)
   def update_raw_and_classified
-    unless @left_sentence.nil? and @right_sentence.nil?
+    unless @left_sentence.nil? && @right_sentence.nil?
       @raw = "("+(@left_sentence.nil? ? "":@left_sentence.raw) + (@operator.nil? ? "":@operator.value) + (@right_sentence.nil? ? "":@right_sentence.raw)+")"
     end
     classify_sentence
@@ -191,7 +191,7 @@ class Sentence
 
   def update_level
     #if is_literal?
-    if @left_sentence.nil? and @right_sentence.nil?
+    if @left_sentence.nil? && @right_sentence.nil?
       @level = @father.level
     else
       @level = @father.level + 1
@@ -283,7 +283,7 @@ class Sentence
         @left_sentence.simplification unless @left_sentence.nil?
         @right_sentence.simplification unless @right_sentence.nil?
 
-        unless Sentence.equals?(old_left, @left_sentence) and Sentence.equals?(old_right, @right_sentence)
+        unless Sentence.equals?(old_left, @left_sentence) && Sentence.equals?(old_right, @right_sentence)
           changed = true
           update
         end
@@ -317,11 +317,11 @@ class Sentence
   # φ | (~φ)
   def is_formula_or_not_formula?
     if @operator.is_disjunction?
-      if @right_sentence.operator and @right_sentence.operator.is_negation?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
         if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
           return true
         end
-      elsif @left_sentence.operator and @left_sentence.operator.is_negation?
+      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
         if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
           return true
         end
@@ -333,11 +333,11 @@ class Sentence
   # φ & (~φ)
   def is_formula_and_not_formula?
     if @operator.is_conjunction?
-      if @right_sentence.operator and @right_sentence.operator.is_negation?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
         if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
           return true
         end
-      elsif @left_sentence.operator and @left_sentence.operator.is_negation?
+      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
         if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
           return true
         end
@@ -349,9 +349,9 @@ class Sentence
   # φ & ⊤
   def is_formula_and_up?
     if @operator.is_conjunction?
-      if @left_sentence and @right_sentence.is_constant?
+      if @left_sentence && @right_sentence.is_constant?
         return @right_sentence.classified.first.is_up?
-      elsif @left_sentence.is_constant? and @right_sentence
+      elsif @left_sentence.is_constant? && @right_sentence
         return @left_sentence.classified.first.is_up?
       end
     end
@@ -361,9 +361,9 @@ class Sentence
   # φ & ⊥
   def is_formula_and_bottom?
     if @operator.is_conjunction?
-      if @left_sentence and @right_sentence.is_constant?
+      if @left_sentence && @right_sentence.is_constant?
         return @right_sentence.classified.first.is_bottom?
-      elsif @left_sentence.is_constant? and @right_sentence
+      elsif @left_sentence.is_constant? && @right_sentence
         return @left_sentence.classified.first.is_bottom?
       end
     end
@@ -373,9 +373,9 @@ class Sentence
   # φ & ⊤
   def is_formula_or_up?
     if @operator.is_disjunction?
-      if @left_sentence and @right_sentence.is_constant?
+      if @left_sentence && @right_sentence.is_constant?
         return @right_sentence.classified.first.is_up?
-      elsif @left_sentence.is_constant? and @right_sentence
+      elsif @left_sentence.is_constant? && @right_sentence
         return @left_sentence.classified.first.is_up?
       end
     end
@@ -385,9 +385,9 @@ class Sentence
   # φ & ⊥
   def is_formula_or_bottom?
     if @operator.is_disjunction?
-      if @left_sentence and @right_sentence.is_constant?
+      if @left_sentence && @right_sentence.is_constant?
         return @right_sentence.classified.first.is_bottom?
-      elsif @left_sentence.is_constant? and @right_sentence
+      elsif @left_sentence.is_constant? && @right_sentence
         return @left_sentence.classified.first.is_bottom?
       end
     end
@@ -397,7 +397,7 @@ class Sentence
   # (~(~a))
   def is_double_negation?
     if @operator.is_negation?
-      if @right_sentence.operator and @right_sentence.operator.is_negation?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
         return true
       end
     end
@@ -405,26 +405,26 @@ class Sentence
   end
 
   def is_bottom?
-    return (is_constant? and @classified.first.is_bottom?)
+    return (is_constant? && @classified.first.is_bottom?)
   end
 
   def is_up?
-    return (is_constant? and @classified.first.is_up?)
+    return (is_constant? && @classified.first.is_up?)
   end
 
   def is_not_bottom?
-    if (@operator and @operator.is_negation?)
+    if (@operator && @operator.is_negation?)
       @right_sentence.is_not_bottom?
     else
-      return (is_bottom? and @father and @father.operator and @father.operator.is_negation?)
+      return (is_bottom? && @father && @father.operator && @father.operator.is_negation?)
     end
   end
 
   def is_not_up?
-    if (@operator and @operator.is_negation?)
+    if (@operator && @operator.is_negation?)
       @right_sentence.is_not_up?
     else
-      return (is_up? and @father and @father.operator and @father.operator.is_negation?)
+      return (is_up? && @father && @father.operator && @father.operator.is_negation?)
     end
   end
 
@@ -476,7 +476,7 @@ class Sentence
         @right_sentence.transformation_into_apnf if @right_sentence
       end
 
-      unless Sentence.equals?(old_left, @left_sentence) and Sentence.equals?(old_right, @right_sentence)
+      unless Sentence.equals?(old_left, @left_sentence) && Sentence.equals?(old_right, @right_sentence)
         update
       end
     end
@@ -507,12 +507,12 @@ class Sentence
   #--------------------------------------------------------------------
 
   def self.opposites_literals?(sentence1, sentence2)
-    if sentence1.is_literal? and sentence2.is_literal?
-      if sentence1.operator and sentence1.operator.is_negation? and not sentence2.operator
+    if sentence1.is_literal? && sentence2.is_literal?
+      if sentence1.operator && sentence1.operator.is_negation? && (not sentence2.operator)
         if sentence1.right_sentence.raw.eql? sentence2.raw
           return true
         end
-      elsif sentence2.operator and sentence2.operator.is_negation? and not sentence1.operator
+      elsif sentence2.operator && sentence2.operator.is_negation? && (not sentence1.operator)
         if sentence2.right_sentence.raw.eql? sentence1.raw
           return true
         end
@@ -640,7 +640,7 @@ class Sentence
   end
 
   def look_ahead(kclass, index, char, buffer, classified_sentence, nivel_parentese)
-    if @raw[index + 1] and kclass::REGEX.match( "#{buffer}#{char}#{@raw[index + 1]}" )
+    if @raw[index + 1] && kclass::REGEX.match( "#{buffer}#{char}#{@raw[index + 1]}" )
       buffer.concat char
     else
       classified_sentence.push kclass.new(buffer+char)
@@ -712,9 +712,9 @@ class Sentence
   #Exemplo: (a&b)
   def is_primitive_sentence?
     index = 1
-    if @classified[index].instance_of? Proposition or @classified[index].instance_of? Constant
-      if @classified[index + 1].instance_of? LogicalOperator
-        if @classified[index + 2].instance_of? Proposition or @classified[index + 2].instance_of? Constant
+    if @classified[index].instance_of?(Proposition) || @classified[index].instance_of?(Constant)
+      if @classified[index + 1].instance_of?(LogicalOperator)
+        if @classified[index + 2].instance_of?(Proposition) || @classified[index + 2].instance_of?(Constant)
           return true
         end
       end
@@ -728,8 +728,8 @@ class Sentence
     if @classified[index].instance_of? Parenthesis
       level = @classified[index].level
       index = index_closed_parenthesis(level)
-      if @classified[index+1].instance_of? LogicalOperator
-        if @classified[index+2].instance_of? Proposition or @classified[index+2].instance_of? Constant
+      if @classified[index+1].instance_of?(LogicalOperator)
+        if @classified[index+2].instance_of?(Proposition) || @classified[index+2].instance_of?(Constant)
           return true
         end
       end
@@ -740,9 +740,9 @@ class Sentence
   #Exemplo: a->(b&c)
   def is_right_derivative?
     index = 1
-    if @classified[index].instance_of? Proposition or @classified[index].instance_of? Constant
-      if @classified[index+1].instance_of? LogicalOperator
-        if @classified[index+2].instance_of? Parenthesis
+    if @classified[index].instance_of?(Proposition) || @classified[index].instance_of?(Constant)
+      if @classified[index+1].instance_of? (LogicalOperator)
+        if @classified[index+2].instance_of?(Parenthesis)
           return true
         end
       end
@@ -753,11 +753,11 @@ class Sentence
   #Exemplo: ((a&b)->(c&d))
   def is_both_derivative?
     index = 1
-    if @classified[index].instance_of? Parenthesis
+    if @classified[index].instance_of?(Parenthesis)
       level = @classified[index].level
       index = index_closed_parenthesis(level)
-      if @classified[index+1].instance_of? LogicalOperator
-        if @classified[index+2].instance_of? Parenthesis
+      if @classified[index+1].instance_of?(LogicalOperator)
+        if @classified[index+2].instance_of?(Parenthesis)
           return true
         end
       end
@@ -765,13 +765,10 @@ class Sentence
     false
   end
 
-
-  #TODO: melhorar negated_sentence
-
   #Exemplo: (~(a&b)) ou (~a)
   def is_negated_sentence?
     index = 1
-    if @classified[index] and LogicalOperator::REGEX_UNARY.match @classified[index].value
+    if @classified[index] && LogicalOperator::REGEX_UNARY.match(@classified[index].value)
       return true
     end
     false
@@ -779,10 +776,10 @@ class Sentence
 
   def index_closed_parenthesis(level,index=0)
     if index == 0
-      @classified.find_index {|el| (el.is_close_parenthesis? if el.instance_of? Parenthesis) and el.level == level}
+      @classified.find_index {|el| (el.is_close_parenthesis? if el.instance_of? Parenthesis) && el.level == level}
     else
       aux = Array.new @classified
-      aux.fill(0,0..index).find_index {|el| (el.is_close_parenthesis? if el.instance_of? Parenthesis) and el.level == level}
+      aux.fill(0,0..index).find_index {|el| (el.is_close_parenthesis? if el.instance_of? Parenthesis) && el.level == level}
     end
   end
 
