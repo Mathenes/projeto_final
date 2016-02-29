@@ -1,0 +1,1 @@
+This directory is where the valid log files will appear.
