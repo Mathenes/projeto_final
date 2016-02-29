@@ -67,14 +67,18 @@ class Sentence
     end
   end
 
+  #only literals are being deleted, so there`s no problem
   def delete
     if self.father
       if self.left_son?
         self.father.copy(self.father.right_sentence)
-        self.father.update
       elsif self.right_son?
         self.father.copy(self.father.left_sentence)
-        self.father.update
+      end
+      aux = self.father
+      while aux != nil
+        aux.update
+        aux = aux.father
       end
       return true
     else
@@ -232,7 +236,7 @@ class Sentence
         old_left = ( @left_sentence ? Sentence.new(@left_sentence) : nil )
         old_right = ( @right_sentence ? Sentence.new(@right_sentence) : nil )
         case @operator.type
-          when :conjuncao
+          when :conjunction
             if is_formula_and_formula?
               copy @left_sentence
               update
@@ -251,7 +255,7 @@ class Sentence
               @left_sentence, @right_sentence, @operator = nil,nil,nil
               update(Constant::VALUES[:bottom])
             end
-          when :disjuncao
+          when :disjunction
             if is_formula_or_formula?
               copy @left_sentence
               update
@@ -269,7 +273,7 @@ class Sentence
               end
               update
             end
-          when :negacao
+          when :negation
             if is_double_negation?
               copy @right_sentence.right_sentence
               update
@@ -480,7 +484,7 @@ class Sentence
         update
       end
     end
-    self
+    self.simplification
   end
 
   #--------------------------------------------------------------------
@@ -604,12 +608,14 @@ class Sentence
     classified_sentence = []
     buffer = ""
     parenthesis_level = @level
+    parenthesis_control = 0
 
     @raw.chars.each_with_index do |char, index|
       case
         when ( Parenthesis::VALUES.has_value? char )
           parentese = Parenthesis.new(char)
           if parentese.is_open_parenthesis?
+            parenthesis_control += 1
             parenthesis_level += 1 unless index==0
             parentese.level = parenthesis_level
             classified_sentence.push parentese
@@ -617,6 +623,7 @@ class Sentence
             parentese.level = parenthesis_level
             classified_sentence.push parentese
             parenthesis_level -= 1
+            parenthesis_control -= 1
           end
 
         when ( LogicalOperator::REGEX_UNARY.match char )
@@ -637,6 +644,8 @@ class Sentence
     end
 
     @classified = classified_sentence
+
+    raise ArgumentError, "Number of parethesis is not right." unless (parenthesis_control == 0)
   end
 
   def look_ahead(kclass, index, char, buffer, classified_sentence, nivel_parentese)
