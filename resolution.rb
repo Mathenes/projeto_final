@@ -24,6 +24,8 @@ class Resolution
   def initialize_file
     @@arq_count = @@arq_count + 1
     @file = File.new("#{LOG_FILES_DIRECTORY}/log_file_#{@@arq_count}.txt","w")
+    @file.puts "Sentence: #{@sentence.raw}"
+    @file.puts "APNF of the negated sentence: #{@sentence.negated.transformation_into_apnf.raw}"
   end
 
   def execute
@@ -46,6 +48,8 @@ class Resolution
   end
 
   def print_valid_resolution
+    @valid_file.puts "Sentence: #{@sentence.raw}"
+    @valid_file.puts "APNF of the negated sentence: #{@sentence.negated.transformation_into_apnf.raw}"
     @valid_context.reverse.each_with_index do |el, index|
       initial = el[:initial]
       initial_local = el[:initial_local]
@@ -83,7 +87,7 @@ class Resolution
     if ures_resolution(initial_local,universe_local,id)
       return true
     else
-      @file.puts "###### BACK [OUT]######"
+      @file.puts "###### OUTER BACKTRACKING | TRYING IRES RULE ######"
       Resolution.reset_sets(initial_local,initial,universe_local,universe)
 
       if ires_resolution(initial_local,universe_local,id)
@@ -125,7 +129,7 @@ class Resolution
   end
 
   def ures_resolution(initial,universe,id)
-    @file.puts "###### ENTROU URES ######"
+    #@file.puts "###### ENTROU URES ######"
     unless universe.empty?
       initial_local, universe_local = [],[]
       Resolution.reset_sets(initial_local,initial,universe_local,universe)
@@ -145,7 +149,7 @@ class Resolution
             universe_local = []
             universe.each{|el|universe_local.push Sentence.new(el)}
             j = j.next
-            @file.puts "###### NO OPPOSITES - NEW PAIR WILL BE TESTED ######"
+            (j > universe_local.count-1) ? @file.puts("###### NO OPPOSITES ######") : @file.puts("###### NO OPPOSITES - NEW PAIR WILL BE TESTED ######")
           else
             has_opposites = true
             universe_local.push aux
@@ -164,10 +168,10 @@ class Resolution
               @valid_context.push({rule: RULES_NAMES[:ures], pair: pair, initial: initial, initial_local: initial_local, universe: universe, universe_local: universe_local, id: id_antes})
               universe_local = []
             else
-              @file.puts "###### BACK [IN][URES]######"
+              @file.puts "###### INNER BACKTRACKING [URES] | TRYING ANOTHER PAIR OF CLAUSES ######"
               universe_local = []
               universe.each{|el|universe_local.push Sentence.new(el)}
-              imprime_conjuntos("VOLTOU PARA A CONFIGURAÇÃO",initial,"I",universe_local,"U",id_antes,@file)
+              imprime_conjuntos("BACK TO CONFIGURATION",initial,"I",universe_local,"U",id_antes,@file)
               j = j.next
               has_opposites = false
             end
@@ -176,17 +180,17 @@ class Resolution
         i = i.next
         j = i + 1
       end
-      @file.puts "###### SAIU URES ######" unless is_done
+      #@file.puts "###### SAIU URES ######" unless is_done
       return is_done
     else
-      @file.puts "###### SAIU URES ######" unless is_done
+      #@file.puts "###### SAIU URES ######" unless is_done
       return false
     end
   end
 
 
   def ires_resolution(initial,universe,id)
-    @file.puts "###### ENTROU IRES ######"
+    #@file.puts "###### ENTROU IRES ######"
     unless initial.empty?
       initial_local, universe_local = [],[]
       Resolution.reset_sets(initial_local,initial,universe_local,universe)
@@ -205,7 +209,7 @@ class Resolution
           if aux == false
             Resolution.reset_sets(initial_local,initial,universe_local,universe)
             j = j.next
-            @file.puts "###### NO OPPOSITES - NEW PAIR WILL BE TESTED ######"
+            (j > universe_local.count-1) ? @file.puts("###### NO OPPOSITES ######") : @file.puts("###### NO OPPOSITES - NEW PAIR WILL BE TESTED ######")
           else
             has_opposites = true
             initial_local.push aux
@@ -225,10 +229,10 @@ class Resolution
               @valid_context.push({rule: RULES_NAMES[:ires], pair: pair, initial: initial, initial_local: initial_local, universe: universe, universe_local: universe_local, id: id_antes})
               universe_local = []
             else
-              @file.puts "###### BACK [IN][IRES]######"
+              @file.puts "###### INNER BACKTRACKING [IRES] | TRYING ANOTHER PAIR OF CLAUSES ######"
               initial_local, universe_local = [],[]
               Resolution.reset_sets(initial_local,initial,universe_local,universe)
-              imprime_conjuntos("VOLTOU PARA A CONFIGURAÇÃO",initial_local,"I",universe_local,"U",id_antes,@file)
+              imprime_conjuntos("BACK TO CONFIGURATION",initial_local,"I",universe_local,"U",id_antes,@file)
               j = j.next
               has_opposites = false
             end
@@ -237,10 +241,10 @@ class Resolution
         i = i.next
         j = i.next
       end
-      @file.puts "###### SAIU IRES ######" unless is_done
+      #@file.puts "###### SAIU IRES ######" unless is_done
       return is_done
     else
-      @file.puts "###### SAIU IRES ######" unless is_done
+      #@file.puts "###### SAIU IRES ######" unless is_done
       return false
     end
   end

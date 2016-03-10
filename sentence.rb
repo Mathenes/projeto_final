@@ -3,7 +3,7 @@ class Sentence
   require './logical_operator.rb'
   require './parenthesis.rb'
   require './constant.rb'
-  require 'pry'
+  #require 'pry'
 
   @@new_symbol_count = 0
 
@@ -110,6 +110,140 @@ class Sentence
       return Sentence.equals?(@father.right_sentence, self)
     else
       return false
+    end
+  end
+
+  # φ|φ
+  def is_formula_or_formula?
+    if @operator.is_disjunction?
+      if Sentence.equals?(@left_sentence, @right_sentence)
+        return true
+      end
+    end
+    false
+  end
+
+  # φ&φ
+  def is_formula_and_formula?
+    if @operator.is_conjunction?
+      if Sentence.equals?(@left_sentence, @right_sentence)
+        return true
+      end
+    end
+    false
+  end
+
+  # φ | (~φ)
+  def is_formula_or_not_formula?
+    if @operator.is_disjunction?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
+        if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
+          return true
+        end
+      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
+        if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
+          return true
+        end
+      end
+    end
+    false
+  end
+
+  # φ & (~φ)
+  def is_formula_and_not_formula?
+    if @operator.is_conjunction?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
+        if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
+          return true
+        end
+      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
+        if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
+          return true
+        end
+      end
+    end
+    false
+  end
+
+  # φ & ⊤
+  def is_formula_and_up?
+    if @operator.is_conjunction?
+      if @left_sentence && @right_sentence.is_constant?
+        return @right_sentence.classified.first.is_up?
+      elsif @left_sentence.is_constant? && @right_sentence
+        return @left_sentence.classified.first.is_up?
+      end
+    end
+    false
+  end
+
+  # φ & ⊥
+  def is_formula_and_bottom?
+    if @operator.is_conjunction?
+      if @left_sentence && @right_sentence.is_constant?
+        return @right_sentence.classified.first.is_bottom?
+      elsif @left_sentence.is_constant? && @right_sentence
+        return @left_sentence.classified.first.is_bottom?
+      end
+    end
+    false
+  end
+
+  # φ & ⊤
+  def is_formula_or_up?
+    if @operator.is_disjunction?
+      if @left_sentence && @right_sentence.is_constant?
+        return @right_sentence.classified.first.is_up?
+      elsif @left_sentence.is_constant? && @right_sentence
+        return @left_sentence.classified.first.is_up?
+      end
+    end
+    false
+  end
+
+  # φ & ⊥
+  def is_formula_or_bottom?
+    if @operator.is_disjunction?
+      if @left_sentence && @right_sentence.is_constant?
+        return @right_sentence.classified.first.is_bottom?
+      elsif @left_sentence.is_constant? && @right_sentence
+        return @left_sentence.classified.first.is_bottom?
+      end
+    end
+    false
+  end
+
+  # (~(~a))
+  def is_double_negation?
+    if @operator.is_negation?
+      if @right_sentence.operator && @right_sentence.operator.is_negation?
+        return true
+      end
+    end
+    false
+  end
+
+  def is_bottom?
+    return (is_constant? && @classified.first.is_bottom?)
+  end
+
+  def is_up?
+    return (is_constant? && @classified.first.is_up?)
+  end
+
+  def is_not_bottom?
+    if (@operator && @operator.is_negation?)
+      @right_sentence.is_not_bottom?
+    else
+      return (is_bottom? && @father && @father.operator && @father.operator.is_negation?)
+    end
+  end
+
+  def is_not_up?
+    if (@operator && @operator.is_negation?)
+      @right_sentence.is_not_up?
+    else
+      return (is_up? && @father && @father.operator && @father.operator.is_negation?)
     end
   end
   #---------------------------------------------------------------------------------------------------------------------
@@ -265,51 +399,33 @@ class Sentence
         old_right = ( @right_sentence ? Sentence.new(@right_sentence) : nil )
         case @operator.type
           when :conjunction
-            if is_formula_and_formula?
-              copy @left_sentence
-              update
-            elsif is_formula_and_not_formula?
-              @left_sentence, @right_sentence, @operator = nil,nil,nil
-              @raw = Constant::VALUES[:bottom]
-              classify_sentence
-            elsif is_formula_and_up?
-              if @left_sentence.is_constant?
-                copy @right_sentence
-              else
-                copy @left_sentence
-              end
-              update
-            elsif is_formula_and_bottom?
-              @left_sentence, @right_sentence, @operator = nil,nil,nil
-              update(Constant::VALUES[:bottom])
-            end
+            simplification_rules_for_conjunction
+
+            #  ******* NEW APNF RULES FOR NEGATED IMPLICATION FORMULA CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+            #  ******* FOR EXAMPLE:
+            new_simplification_rules_for_conjunction()
+
           when :disjunction
-            if is_formula_or_formula?
-              copy @left_sentence
-              update
-            elsif is_formula_or_not_formula?
-              @left_sentence, @right_sentence, @operator = nil,nil,nil
-              update(Constant::VALUES[:up])
-            elsif is_formula_or_up?
-              @left_sentence, @right_sentence, @operator = nil,nil,nil
-              update(Constant::VALUES[:up])
-            elsif is_formula_or_bottom?
-              if @left_sentence.is_constant?
-                copy @right_sentence
-              else
-                copy @left_sentence
-              end
-              update
-            end
+            simplification_rules_for_disjunction
+
+            #  ******* NEW APNF RULES FOR NEGATED IMPLICATION FORMULA CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+            #  ******* FOR EXAMPLE:
+            new_simplification_rules_for_disjunction()
+
           when :negation
-            if is_double_negation?
-              copy @right_sentence.right_sentence
-              update
-            elsif is_not_bottom?
-              update(Constant::VALUES[:up])
-            elsif is_not_up?
-              update(Constant::VALUES[:bottom])
-            end
+            simplification_rules_for_negation
+
+            #  ******* NEW SIMPLIFICATION RULES FOR NEGATION CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+            #  ******* FOR EXAMPLE:
+            new_simplification_rules_for_negation()
+
+          when :new_operator
+            # ******* OR A NEW OPERATOR NOT USED BEFORE CAN BE ADDED IN THE SIMPLIFICATION - LIKE IMPLICATION FOR EXAMPLE *******
+
+            # ******* AND A NEW SIMPLIFICATION RULE CAN BE ADDED TO THIS OPERATOR *******
+            # ******* FOR EXAMPLE: *******
+            simplification_rules_for_new_operator()
+
         end
 
         @left_sentence.simplification unless @left_sentence.nil?
@@ -336,25 +452,32 @@ class Sentence
         unless @right_sentence.operator.nil?
           case @right_sentence.operator.type
             when :implication
-              copy @right_sentence
-              @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
-              @right_sentence = @right_sentence.negated
-              @right_sentence.father = self
-              update
+              apnf_rules_for_negated_implication
+
+              #  ******* NEW APNF RULES FOR NEGATED IMPLICATION FORMULA CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+              #  ******* FOR EXAMPLE:
+              new_apnf_rules_for_negated_implication()
+
             when :conjunction
-              copy @right_sentence
-              @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
-              @left_sentence = @left_sentence.negated
-              @right_sentence = @right_sentence.negated
-              @right_sentence.father,@left_sentence.father  = self,self
-              update
+              apnf_rules_for_negated_conjunction
+
+              #  ******* NEW APNF RULES FOR NEGATED CONJUNCTION FORMULA CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+              #  ******* FOR EXAMPLE:
+              new_apnf_rules_for_negated_conjunction()
+
             when :disjunction
-              copy @right_sentence
-              @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
-              @left_sentence = @left_sentence.negated
-              @right_sentence = @right_sentence.negated
-              @right_sentence.father,@left_sentence.father  = self,self
-              update
+              apnf_rules_for_negated_disjunction
+
+              #  ******* NEW APNF RULES FOR NEGATED DISJUNCTION FORMULA CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+              #  ******* FOR EXAMPLE:
+              new_apnf_rules_for_negated_disjunction()
+
+            when :new_operator
+              # ******* OR A NEW OPERATOR NOT USED BEFORE CAN BE ADDED IN THE SIMPLIFICATION - LIKE NEGATION FOR EXAMPLE *******
+
+              # ******* AND A NEW SIMPLIFICATION RULE CAN BE ADDED TO THIS OPERATOR *******
+              # ******* FOR EXAMPLE: *******
+              apnf_rules_for_negated_new_operator()
           end
           @left_sentence.transformation_into_apnf if @left_sentence
           @right_sentence.transformation_into_apnf if @right_sentence
@@ -362,10 +485,27 @@ class Sentence
       else
         case @operator.type
           when :implication
-            @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
-            @left_sentence = @left_sentence.negated
-            @left_sentence.father = self
-            update
+            apnf_rules_for_implication
+
+          #  ******* NEW APNF RULES FOR IMPLICATION CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+          #  ******* FOR EXAMPLE:
+          new_apnf_rules_for_implication()
+
+          #  ******* OR NEW RULES FOR CONJUNCTION AND DISJUNCTION CAN BE ADDED TOO, IN A NEW OPTION FOR THE CASE
+          #  ******* FOR EXAMPLE:
+          when :conjunction
+            new_apnf_rules_for_conjunction()
+
+          when :disjunction
+            new_apnf_rules_for_disjunction()
+
+          when :new_operator
+            # ******* OR A NEW OPERATOR NOT USED BEFORE CAN BE ADDED IN THE SIMPLIFICATION - LIKE NEGATION FOR EXAMPLE *******
+
+            # ******* AND A NEW SIMPLIFICATION RULE CAN BE ADDED TO THIS OPERATOR *******
+            # ******* FOR EXAMPLE: *******
+            apnf_rules_for_new_operator()
+
         end
         @left_sentence.transformation_into_apnf if @left_sentence
         @right_sentence.transformation_into_apnf if @right_sentence
@@ -382,8 +522,6 @@ class Sentence
   #--------------------------------------------DSNF TRANSFORMATION FUNCTION---------------------------------------------
   def transformation_into_dsnf
     negated_sentence_in_apnf = self.negated.transformation_into_apnf
-    puts "###### APNF ######"
-    puts "#{negated_sentence_in_apnf.raw}"
     initial = [Sentence.new(generate_new_symbol)]
     first_element = Sentence.generate_implication_between(Sentence.new(initial.first), Sentence.new(negated_sentence_in_apnf))
     universe = [first_element]
@@ -393,8 +531,8 @@ class Sentence
     #RULE 6 OF THE PAPER
     second_step_dsnf(universe)
 
-    universe.each do |el|
-      el.simplification
+    universe.each do |clause|
+      clause.simplification
     end
 
     return {:I => initial, :U => universe}
@@ -409,46 +547,44 @@ class Sentence
     is_done = false
     while not is_done
       is_done = true
-      universe.each_with_index do |el, index|
-        if el.right_sentence.operator
-          case el.right_sentence.operator.type
-            #REGRA 1
+      universe.each_with_index do |clause, index|
+        right_sentence_current_clause = clause.right_sentence
+        if right_sentence_current_clause.operator
+          case right_sentence_current_clause.operator.type
             when :conjunction
-              left_symbol = Sentence.new(el.left_sentence)              #pega o t
-              formula1 = el.right_sentence.left_sentence                #pega o φ1
-              formula2 = el.right_sentence.right_sentence               #pega o φ2
-              universe.push Sentence.generate_implication_between(left_symbol, formula1)
-              left_symbol = Sentence.new(el.left_sentence)              #cria outro t em outra posição da memória
-              universe.push Sentence.generate_implication_between(left_symbol, formula2)
-              universe.delete_at(index)                                 #tira a sentença do conjunto
+              dsnf_rules_for_conjunction(clause, index, right_sentence_current_clause, universe)
               is_done = false
 
-            #REGRA 2
+              #  ******* NEW DSNF RULES FOR CONJUNCTION CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+              #  ******* FOR EXAMPLE:
+              new_dsnf_rules_for_conjunction()
+
             when :disjunction
-              formula = el.right_sentence
-              unless formula.right_sentence.is_literal?
-                left_symbol = Sentence.new(el.left_sentence)            #pega o t
-                new_symbol = Sentence.new(generate_new_symbol)                        #gera novo simbolo t1
-                formula1 = el.right_sentence.left_sentence              #pega o φ1
-                formula2 = el.right_sentence.right_sentence             #pega o φ2
-                aux = Sentence.generate_disjunction_between(formula1, new_symbol) #gera a disjuncao entre φ1 e o novo simbolo
-                universe.push Sentence.generate_implication_between(left_symbol, aux)
-                universe.push Sentence.generate_implication_between(new_symbol, formula2)
-                universe.delete_at(index)
+              unless right_sentence_current_clause.right_sentence.is_literal?
+                #IF THE RIGHT SENTENCE IS A LITERAL, WE FOLLOW THE RULE EXACTLY THE WAY IT APPEARS IN THE PAPER TAKING FIRST THE LEFT SENTENCE
+                #AND THEN THE RIGHT SENTENCE AS ARGUMENT
+                dsnf_rules_for_disjunction(clause, index, right_sentence_current_clause.left_sentence, right_sentence_current_clause.right_sentence, universe)
                 is_done = false
+
+                #  ******* NEW DSNF RULES FOR DISJUNTION CAN BE ADDED HERE AS A METHOD JUST LIKE THE METHOD ABOVE *******
+                #  ******* FOR EXAMPLE:
+                new_dsnf_rules_for_disjunction()
+
               else
-                unless formula.left_sentence.is_literal?
-                  left_symbol = Sentence.new(el.left_sentence)            #pega o t
-                  new_symbol = Sentence.new(generate_new_symbol)                        #gera novo simbolo t1
-                  formula1 = el.right_sentence.right_sentence             #pega o φ2 (neste caso ele é um literal)
-                  formula2 = el.right_sentence.left_sentence              #pega o φ1
-                  aux = Sentence.generate_disjunction_between(formula1, new_symbol) #gera a disjuncao entre φ1 e o novo simbolo
-                  universe.push Sentence.generate_implication_between(left_symbol, aux)
-                  universe.push Sentence.generate_implication_between(new_symbol, formula2)
-                  universe.delete_at(index)
+                #HOWEVER, THE RULE IS ASSOCIATIVE AND COMMUTATIVE. SO, IF THE LEFT SENTENCE IS THE LITERAL WE INVERT THE ORDER AND TAKE
+                #FIRST THE RIGHT SENTENCE AND THEN THE LEFT SENTENCE AS ARGUMENT
+                unless right_sentence_current_clause.left_sentence.is_literal?
+                  dsnf_rules_for_disjunction(clause, index, right_sentence_current_clause.right_sentence, right_sentence_current_clause.left_sentence, universe)
                   is_done = false
                 end
               end
+
+            when :new_operator
+              # ******* OR A NEW OPERATOR NOT USED BEFORE CAN BE ADDED - LIKE NEGATION FOR EXAMPLE *******
+
+              # ******* AND A NEW SIMPLIFICATION RULE CAN BE ADDED TO THIS OPERATOR *******
+              # ******* FOR EXAMPLE: *******
+              dsnf_rules_for_new_operator()
           end
         end
       end
@@ -459,10 +595,10 @@ class Sentence
     is_done = false
     while not is_done
       is_done = true
-      universe.each_with_index do |el, index|
-        if el.operator.is_implication?
-          left_symbol = Sentence.new(el.left_sentence).negated                  #pega o ~t
-          disjunction_of_literals_or_literal = el.right_sentence                #pega a disjuncao de literais ou o literal
+      universe.each_with_index do |clause, index|
+        if clause.operator.is_implication?
+          left_symbol = Sentence.new(clause.left_sentence).negated                  #pega o ~t
+          disjunction_of_literals_or_literal = clause.right_sentence                #pega a disjuncao de literais ou o literal
           universe.push Sentence.generate_disjunction_between(left_symbol, disjunction_of_literals_or_literal)
           universe.delete_at(index)
           is_done = false
@@ -664,138 +800,157 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #-----------------------------------------------SIMPLIFICATION RULES--------------------------------------------------
-  # φ|φ
-  def is_formula_or_formula?
-    if @operator.is_disjunction?
-      if Sentence.equals?(@left_sentence, @right_sentence)
-        return true
+  def simplification_rules_for_conjunction
+    if is_formula_and_formula?
+      copy @left_sentence
+      update
+    elsif is_formula_and_not_formula?
+      @left_sentence, @right_sentence, @operator = nil,nil,nil
+      update(Constant::VALUES[:bottom])
+    elsif is_formula_and_up?
+      if @left_sentence.is_constant?
+        copy @right_sentence
+      else
+        copy @left_sentence
       end
+      update
+    elsif is_formula_and_bottom?
+      @left_sentence, @right_sentence, @operator = nil,nil,nil
+      update(Constant::VALUES[:bottom])
     end
-    false
   end
 
-  # φ&φ
-  def is_formula_and_formula?
-    if @operator.is_conjunction?
-      if Sentence.equals?(@left_sentence, @right_sentence)
-        return true
+  def simplification_rules_for_disjunction
+    if is_formula_or_formula?
+      copy @left_sentence
+      update
+    elsif is_formula_or_not_formula?
+      @left_sentence, @right_sentence, @operator = nil,nil,nil
+      update(Constant::VALUES[:up])
+    elsif is_formula_or_up?
+      @left_sentence, @right_sentence, @operator = nil,nil,nil
+      update(Constant::VALUES[:up])
+    elsif is_formula_or_bottom?
+      if @left_sentence.is_constant?
+        copy @right_sentence
+      else
+        copy @left_sentence
       end
-    end
-    false
-  end
-
-  # φ | (~φ)
-  def is_formula_or_not_formula?
-    if @operator.is_disjunction?
-      if @right_sentence.operator && @right_sentence.operator.is_negation?
-        if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
-          return true
-        end
-      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
-        if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
-          return true
-        end
-      end
-    end
-    false
-  end
-
-  # φ & (~φ)
-  def is_formula_and_not_formula?
-    if @operator.is_conjunction?
-      if @right_sentence.operator && @right_sentence.operator.is_negation?
-        if Sentence.equals?(@left_sentence,@right_sentence.right_sentence)
-          return true
-        end
-      elsif @left_sentence.operator && @left_sentence.operator.is_negation?
-        if Sentence.equals?(@left_sentence.right_sentence,@right_sentence)
-          return true
-        end
-      end
-    end
-    false
-  end
-
-  # φ & ⊤
-  def is_formula_and_up?
-    if @operator.is_conjunction?
-      if @left_sentence && @right_sentence.is_constant?
-        return @right_sentence.classified.first.is_up?
-      elsif @left_sentence.is_constant? && @right_sentence
-        return @left_sentence.classified.first.is_up?
-      end
-    end
-    false
-  end
-
-  # φ & ⊥
-  def is_formula_and_bottom?
-    if @operator.is_conjunction?
-      if @left_sentence && @right_sentence.is_constant?
-        return @right_sentence.classified.first.is_bottom?
-      elsif @left_sentence.is_constant? && @right_sentence
-        return @left_sentence.classified.first.is_bottom?
-      end
-    end
-    false
-  end
-
-  # φ & ⊤
-  def is_formula_or_up?
-    if @operator.is_disjunction?
-      if @left_sentence && @right_sentence.is_constant?
-        return @right_sentence.classified.first.is_up?
-      elsif @left_sentence.is_constant? && @right_sentence
-        return @left_sentence.classified.first.is_up?
-      end
-    end
-    false
-  end
-
-  # φ & ⊥
-  def is_formula_or_bottom?
-    if @operator.is_disjunction?
-      if @left_sentence && @right_sentence.is_constant?
-        return @right_sentence.classified.first.is_bottom?
-      elsif @left_sentence.is_constant? && @right_sentence
-        return @left_sentence.classified.first.is_bottom?
-      end
-    end
-    false
-  end
-
-  # (~(~a))
-  def is_double_negation?
-    if @operator.is_negation?
-      if @right_sentence.operator && @right_sentence.operator.is_negation?
-        return true
-      end
-    end
-    false
-  end
-
-  def is_bottom?
-    return (is_constant? && @classified.first.is_bottom?)
-  end
-
-  def is_up?
-    return (is_constant? && @classified.first.is_up?)
-  end
-
-  def is_not_bottom?
-    if (@operator && @operator.is_negation?)
-      @right_sentence.is_not_bottom?
-    else
-      return (is_bottom? && @father && @father.operator && @father.operator.is_negation?)
+      update
     end
   end
 
-  def is_not_up?
-    if (@operator && @operator.is_negation?)
-      @right_sentence.is_not_up?
-    else
-      return (is_up? && @father && @father.operator && @father.operator.is_negation?)
+  def simplification_rules_for_negation
+    if is_double_negation?
+      copy @right_sentence.right_sentence
+      update
+    elsif is_not_bottom?
+      update(Constant::VALUES[:up])
+    elsif is_not_up?
+      update(Constant::VALUES[:bottom])
     end
   end
 
+  # ****** NEW RULES FOR SIMPLIFICATION CAN BE ADDED HERE
+  def new_simplification_rules_for_conjunction
+  end
+  def new_simplification_rules_for_disjunction
+  end
+  def new_simplification_rules_for_negation
+  end
+  def simplification_rules_for_new_operator
+  end
+  #---------------------------------------------------------------------------------------------------------------------
+
+  #----------------------------------------------------APNF RULES-------------------------------------------------------
+  # α(¬(φ → ψ)) = (α(φ) ∧ α(¬ψ))
+  def apnf_rules_for_negated_implication
+    copy @right_sentence
+    @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
+    @right_sentence = @right_sentence.negated
+    @right_sentence.father = self
+    update
+  end
+
+  #α(¬(φ ∧ ψ)) = (α(¬φ) ∨ α(¬ψ))
+  def apnf_rules_for_negated_conjunction
+    copy @right_sentence
+    @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
+    @left_sentence = @left_sentence.negated
+    @right_sentence = @right_sentence.negated
+    @right_sentence.father,@left_sentence.father  = self,self
+    update
+  end
+
+  # α(¬(φ ∨ ψ)) = (α(¬φ) ∧ α(¬ψ))
+  def apnf_rules_for_negated_disjunction
+    copy @right_sentence
+    @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
+    @left_sentence = @left_sentence.negated
+    @right_sentence = @right_sentence.negated
+    @right_sentence.father,@left_sentence.father  = self,self
+    update
+  end
+
+  # α(φ → ψ) = α(¬φ) ∨ α(ψ)
+  def apnf_rules_for_implication
+    @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
+    @left_sentence = @left_sentence.negated
+    @left_sentence.father = self
+    update
+  end
+
+  # ****** NEW RULES FOR APNF CAN BE ADDED HERE
+
+  def new_apnf_rules_for_negated_implication
+  end
+  def new_apnf_rules_for_negated_disjunction
+  end
+  def new_apnf_rules_for_negated_conjunction
+  end
+  def new_apnf_rules_for_implication
+  end
+  def new_apnf_rules_for_disjunction
+  end
+  def new_apnf_rules_for_conjunction
+  end
+  def apnf_rules_for_negated_new_operator
+  end
+  def apnf_rules_for_new_operator
+  end
+  #---------------------------------------------------------------------------------------------------------------------
+
+  #----------------------------------------------------DSNF RULES-------------------------------------------------------
+  #{t->(ψ1 ∧ ψ2)} −→ {t -> ψ1,t -> ψ2}
+  def dsnf_rules_for_conjunction(clause, index, right_sentence_current_clause, universe)
+    t = Sentence.new(clause.left_sentence)                               #pega o t
+    formula1 = right_sentence_current_clause.left_sentence               #pega o φ1
+    formula2 = right_sentence_current_clause.right_sentence              #pega o φ2
+    universe.push Sentence.generate_implication_between(t, formula1)
+    t = Sentence.new(clause.left_sentence)                            #cria outro t em outra posição da memória
+    universe.push Sentence.generate_implication_between(t, formula2)
+    universe.delete_at(index)                                                    #tira a sentença do conjunto
+  end
+
+  #{t->(ψ1 ∨ ψ2)} −→ {t→(ψ1 ∨ t1),t1 -> ψ2}
+  def dsnf_rules_for_disjunction(clause, index, left_sentence, right_sentence, universe)
+    t = Sentence.new(clause.left_sentence)                                #pega o t
+    new_symbol = Sentence.new(generate_new_symbol)                        #gera novo simbolo t1
+    formula1 = left_sentence                                              #pega o φ1
+    formula2 = right_sentence                                             #pega o φ2
+    formula_or_new_symbol = Sentence.generate_disjunction_between(formula1, new_symbol)     #gera a disjuncao entre φ1 e o novo simbolo
+    universe.push Sentence.generate_implication_between(t, formula_or_new_symbol)
+    universe.push Sentence.generate_implication_between(new_symbol, formula2)
+    universe.delete_at(index)
+  end
+
+  # ****** NEW RULES FOR DSNF CAN BE ADDED HERE
+
+  def new_dsnf_rules_for_conjunction
+  end
+  def new_dsnf_rules_for_disjunction
+  end
+  def dsnf_rules_for_new_operator
+  end
+  #---------------------------------------------------------------------------------------------------------------------
 end
