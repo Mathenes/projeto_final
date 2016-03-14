@@ -1,3 +1,44 @@
+# This class operates over a sentence (formula).
+# A sentence has the following structure:
+# (See LogicalOperator, Proposition and Constant classes to find out what/how values can be inputed as an operator, a
+# proposition and a constant, respectively)
+
+# It has the following instance variables:
+# @father         -> a Sentence-type variable that holds the reference of a sentence that is the father of this one
+# @raw            -> a String-type variable that holds the value of this sentence in its string form inputed by the user
+# @classified     -> an Array-type variable that holds the value of an array where each element represents each element
+#                    of this sentence classified by its own type, e.g, a proposition, or a logical operator and so on
+# @right_sentence -> a Sentence-type variable that holds the reference of a sentence that is the right son, i.e, the right
+#                    subsentence of this one.
+# @left_sentence  -> a Sentence-type variable that holds the reference of a sentence that is the left son, i.e, the left
+#                    subsentence of this one.
+# @operator       -> a LogicalOperator-type variable that holds the value of the main operator of this sentence
+# @level          -> a Integer-type variable that holds the value of this sentence's level
+
+# For example, consider the sentence ( (~x) & ((0|1) & (y->z)) );
+# This sentence will be represented as a binary tree. Its syntax tree is as follows:
+
+#             &
+#          /     \
+#         /       \
+#        ~         &
+#         \      /    \
+#          \   /      \
+#          x   |       ->
+#             / \      / \
+#            /   \    /   \
+#           0     1  x     z
+
+# Where,
+# - @father is nil
+# - @raw is "((~x)&((0|1)&(y->z)))"
+# - @classified is representend by an array [Parenthesis (, Parenthesis (, Proposition ~x, LogicalOperator &, Parenthesis ( ...and so on ]
+# - @right_sentence is the subsentence represented by ((0|1)&(y->z))). Recursively, in this right_sentence happens the same for its elements
+# - @left_sentence is the subsentence represented by (~x). Recursively, in this right_sentence happens the same for its elements
+# - @operator is the logical_operator represented by &
+# - @level is 1
+
+
 class Sentence
   require './proposition.rb'
   require './logical_operator.rb'
@@ -5,11 +46,18 @@ class Sentence
   require './constant.rb'
   #require 'pry'
 
+  #Class variable that holds the value of the last created new symbol (for resolution)
   @@new_symbol_count = 0
 
   attr_accessor :father, :raw, :classified, :right_sentence, :left_sentence, :operator, :level
 
 
+  # Method that is called automatically when a new sentence is created. A new sentence can be created by its string
+  # form or by passing an instance of a sentence as a parameter. Or an empty sentence can be create if no parameters are inputed.
+  # Input:
+  # sentence: A sentence in its string form or an instance of a sentence;
+  # father_or_level: When passing a string form of a sentece, you can pass its level too. When passing an instance of a sentence
+  #                  you can pass the instance of a sentence that will be its father.
   def initialize(sentence=nil,father_or_level = 0)
     if sentence == nil
       @level = 0
@@ -27,6 +75,10 @@ class Sentence
     end
   end
 
+  # Method thats is called when the method above receive an instance of a sentence as parameter
+  #Input:
+  # sentence: An instance of a sentence
+  # father : An instance of a sentence that will be the father of the sentence passed in the parameter above
   def initialize_with_instance(sentence,father)
     @father = sentence.father.nil? ? nil : father
     @raw = String.new(sentence.raw)
@@ -37,7 +89,10 @@ class Sentence
     @level = sentence.level
   end
 
-  #only literals are being deleted, so there`s no problem
+  # Method that deletes a literal of a sentence by erasing its reference. Must navigate to a literal and call this method.
+  # Output:
+  # true if succeeded
+  # false otherwise
   def delete
     if self.father
       if self.is_left_son?
@@ -56,9 +111,9 @@ class Sentence
     end
   end
 
-  #TODO: Verificar se essa é a melhor forma para negar uma sentença. Pelo menos é a forma mais rápida, pois a outra
-  #forma envolveria atualizar a bruta com uma negação e a partir daí chamar a função agrupar. Mas isso tem um custo
-  #de processamento bem maior, porque teria que estar sempre chamando a função agrupar - que é uma função recursiva.
+  # Method that negates a sentence.
+  # Output:
+  # a new instance of the sentence in its negated form
   def negated
     aux = Sentence.new
     aux.operator = LogicalOperator.new(LogicalOperator::VALUES[:negation])
@@ -72,19 +127,22 @@ class Sentence
     aux
   end
 
+  # A method that copies another instance of a sentence.
+  # Input:
+  # sentence: an instance of a sentence
   def copy(sentence)
     if sentence.is_literal?||sentence.is_constant?
       @raw = String.new(sentence.raw)
     end
     @right_sentence = sentence.right_sentence.nil? ? nil : Sentence.new(sentence.right_sentence,self)
     @left_sentence = sentence.left_sentence.nil? ? nil : Sentence.new(sentence.left_sentence,self)
-    #@left_sentence.father = self if @left_sentence
-    #@right_sentence.father = self if @right_sentence
     @operator = sentence.operator.nil? ? nil : LogicalOperator.new(sentence.operator)
   end
   #---------------------------------------------------------------------------------------------------------------------
 
   #---------------------------------------------------BOOLEAN METHODS---------------------------------------------------
+
+  # Boolean method that tests if the sentence is a literal
   def is_literal?
     if @operator && @operator.is_negation?
       @right_sentence.is_literal?
@@ -93,10 +151,12 @@ class Sentence
     end
   end
 
+  # Boolean method that tests if the sentence is a constant
   def is_constant?
     @classified.first.instance_of? Constant
   end
 
+  # Boolean method that tests if the sentence is the left subsentence of its father
   def is_left_son?
     if @father
       return Sentence.equals?(@father.left_sentence, self)
@@ -105,6 +165,7 @@ class Sentence
     end
   end
 
+  # Boolean method that tests if the sentence is the right subsentence of its father
   def is_right_son?
     if @father
       return Sentence.equals?(@father.right_sentence, self)
@@ -113,7 +174,7 @@ class Sentence
     end
   end
 
-  # φ|φ
+  # Boolean method that tests if the sentence is of the form: (φ | φ)
   def is_formula_or_formula?
     if @operator.is_disjunction?
       if Sentence.equals?(@left_sentence, @right_sentence)
@@ -123,7 +184,7 @@ class Sentence
     false
   end
 
-  # φ&φ
+  # Boolean method that tests if the sentence is of the form: (φ & φ)
   def is_formula_and_formula?
     if @operator.is_conjunction?
       if Sentence.equals?(@left_sentence, @right_sentence)
@@ -133,7 +194,7 @@ class Sentence
     false
   end
 
-  # φ | (~φ)
+  # Boolean method that tests if the sentence is of the form: (φ | (~φ))
   def is_formula_or_not_formula?
     if @operator.is_disjunction?
       if @right_sentence.operator && @right_sentence.operator.is_negation?
@@ -149,7 +210,7 @@ class Sentence
     false
   end
 
-  # φ & (~φ)
+  # Boolean method that tests if the sentence is of the form: (φ & (~φ))
   def is_formula_and_not_formula?
     if @operator.is_conjunction?
       if @right_sentence.operator && @right_sentence.operator.is_negation?
@@ -165,7 +226,7 @@ class Sentence
     false
   end
 
-  # φ & ⊤
+  # Boolean method that tests if the sentence is of the form: (φ & ⊤)
   def is_formula_and_up?
     if @operator.is_conjunction?
       if @left_sentence && @right_sentence.is_constant?
@@ -177,7 +238,7 @@ class Sentence
     false
   end
 
-  # φ & ⊥
+  # Boolean method that tests if the sentence is of the form: (φ & ⊥)
   def is_formula_and_bottom?
     if @operator.is_conjunction?
       if @left_sentence && @right_sentence.is_constant?
@@ -189,7 +250,7 @@ class Sentence
     false
   end
 
-  # φ & ⊤
+  # Boolean method that tests if the sentence is of the form: (φ & ⊤)
   def is_formula_or_up?
     if @operator.is_disjunction?
       if @left_sentence && @right_sentence.is_constant?
@@ -201,7 +262,7 @@ class Sentence
     false
   end
 
-  # φ & ⊥
+  # Boolean method that tests if the sentence is of the form: (φ & ⊥)
   def is_formula_or_bottom?
     if @operator.is_disjunction?
       if @left_sentence && @right_sentence.is_constant?
@@ -213,7 +274,7 @@ class Sentence
     false
   end
 
-  # (~(~a))
+  # Boolean method that tests if the sentence is of the form: (~(~a))
   def is_double_negation?
     if @operator.is_negation?
       if @right_sentence.operator && @right_sentence.operator.is_negation?
@@ -223,14 +284,17 @@ class Sentence
     false
   end
 
+  # Boolean method that tests if the sentence is the constant bottom
   def is_bottom?
     return (is_constant? && @classified.first.is_bottom?)
   end
 
+  # Boolean method that tests if the sentence is the constant up
   def is_up?
     return (is_constant? && @classified.first.is_up?)
   end
 
+  # Boolean method that tests if the sentence is not the constant bottom
   def is_not_bottom?
     if (@operator && @operator.is_negation?)
       @right_sentence.is_not_bottom?
@@ -239,6 +303,7 @@ class Sentence
     end
   end
 
+  # Boolean method that tests if the sentence is not the constant up
   def is_not_up?
     if (@operator && @operator.is_negation?)
       @right_sentence.is_not_up?
@@ -249,6 +314,12 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #----------------------------------------------------USEFUL METHODS---------------------------------------------------
+
+  # Method that iterates over all subsentences of this sentence.
+  # Input:
+  # &block: a block that work over the subsentences elements
+  # Output:
+  # each subsentence of this sentence until reaching the leafs, i.e, the literals
   def each(&block)
     old_raw = @raw
     yield self unless self.nil?
@@ -264,6 +335,7 @@ class Sentence
     end
   end
 
+  # The to_string method of this class
   def to_s
     raw = "Raw: #{@raw}"
     puts raw
@@ -285,6 +357,9 @@ class Sentence
     puts
   end
 
+  # Method that finds all the propositional symbols of this sentence
+  # Output:
+  # an array of propositional symbols of this sentence
   def propositional_symbols
     symbols = []
     @classified.each do |el|
@@ -296,6 +371,13 @@ class Sentence
 
   #------------------------------------------------------SELF METHODS---------------------------------------------------
   #http://codereview.stackexchange.com/questions/6774/check-if-a-binary-tree-is-a-subtree-of-another-tree
+  # Method that tests if two sentences are exactly the same
+  # Input:
+  # sentence1: an instance of a sentence
+  # sentence2: an instance of a sentence
+  # Output:
+  # true if the sentences are equals
+  # false otherwise
   def self.equals?(sentence1, sentence2)
     return true if (sentence1 == sentence2)
     return false if (sentence1 == nil || sentence2 == nil)
@@ -303,14 +385,21 @@ class Sentence
     return Sentence.equals?(sentence1.left_sentence, sentence2.left_sentence) && Sentence.equals?(sentence1.right_sentence, sentence2.right_sentence)
   end
 
-  def self.opposites_literals?(sentence1, sentence2)
-    if sentence1.is_literal? && sentence2.is_literal?
-      if sentence1.operator && sentence1.operator.is_negation? && (not sentence2.operator)
-        if sentence1.right_sentence.raw.eql? sentence2.raw
+  # Method that tests if two literals are opposites
+  # Input:
+  # literal1: an instance of a sentence that is a literal
+  # literal2: an instance of a sentence that is a literal
+  # Output:
+  # true if the literals are opposites
+  # false otherwise
+  def self.opposites_literals?(literal1, literal2)
+    if literal1.is_literal? && literal2.is_literal?
+      if literal1.operator && literal1.operator.is_negation? && (not literal2.operator)
+        if literal1.right_sentence.raw.eql? literal2.raw
           return true
         end
-      elsif sentence2.operator && sentence2.operator.is_negation? && (not sentence1.operator)
-        if sentence2.right_sentence.raw.eql? sentence1.raw
+      elsif literal2.operator && literal2.operator.is_negation? && (not literal1.operator)
+        if literal2.right_sentence.raw.eql? literal1.raw
           return true
         end
       end
@@ -318,10 +407,22 @@ class Sentence
     false
   end
 
-  def self.same_literals?(sentence1, sentence2)
-    return sentence1.raw.eql? sentence2.raw
+  # Method that tests if two literals are the same by their raw values
+  # Input:
+  # literal1: an instance of a sentence that is a literal
+  # literal2: an instance of a sentence that is a literal
+  # Output:
+  # true if the literals are same
+  # false otherwise
+  def self.same_literals?(literal1, literal2)
+    return literal1.raw.eql? literal2.raw
   end
 
+  # Method that generates a new sentence that is the implication of two sentences.
+  # sentence1: an instance of a sentence
+  # sentence2: an instance of a sentence
+  # Output:
+  # an instance of a sentence that is the implication of the two sentences passed as parameters
   def self.generate_implication_between(sentence1, sentence2)
     aux = Sentence.new
     aux.left_sentence = sentence1
@@ -333,6 +434,11 @@ class Sentence
     aux
   end
 
+  # Method that generates a new sentence that is the disjunction of two sentences.
+  # sentence1: an instance of a sentence
+  # sentence2: an instance of a sentence
+  # Output:
+  # an instance of a sentence that is the disjunction of the two sentences passed as parameters
   def self.generate_disjunction_between(sentence1, sentence2)
     aux = Sentence.new
     aux.left_sentence = sentence1
@@ -347,6 +453,9 @@ class Sentence
 
   #---------------------------------------------SENTENCE UPDATE METHODS-------------------------------------------------
   #negação é um literal com filho da direita, por isso ao atualizar sua bruta, devemos olhar seu filho da direita
+  # Method that updates the sentence and its subsentences when it gets modified by simplification or wherever.
+  # Input:
+  # raw: an optional string form of a sentence when needed to manually modify its raw value
   def update(raw=nil)
     unless raw
       update_raw_and_classified
@@ -361,6 +470,7 @@ class Sentence
   end
 
   #TODO: VERIFICAR SE É POSSÍVEL UTILIZAR !IS_LITERAL? (DAVA PROBLEMA POIS UM LITERAL NEGADO TB É UM LITERAL E DEVE SER ATUALIZADO)
+  # An assistive method for the update method above that updates raw and classified through its right and left subsentences
   def update_raw_and_classified
     unless @left_sentence.nil? && @right_sentence.nil?
       @raw = "("+(@left_sentence.nil? ? "":@left_sentence.raw) + (@operator.nil? ? "":@operator.value) + (@right_sentence.nil? ? "":@right_sentence.raw)+")"
@@ -368,6 +478,8 @@ class Sentence
     classify_sentence
   end
 
+  # An assistive method for the update method above that updates the level of its right and left subsentences by using the level
+  # of the father
   def update_level
     #if is_literal?
     if @left_sentence.nil? && @right_sentence.nil?
@@ -379,6 +491,7 @@ class Sentence
     end
   end
 
+  # An assistive method for the update method above that updates classified variable of its right and left subsentences
   def update_classified
     classify_sentence
     @left_sentence.update_classified unless @left_sentence.nil?
@@ -387,9 +500,10 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #-----------------------------------------------SIMPLIFICATION FUNCTION-----------------------------------------------
-  # Método que simplifica as sentenças de acordo com as regras
-  # contidas no paper que é base para este projeto;
-
+  # Recursive method that simplifies this sentence by exhaustively applying the simplification rules contained in the
+  # paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
+  # Output:
+  # this sentence simplified by the simplification rules
   def simplification
     changed = true
     while changed
@@ -442,6 +556,10 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #--------------------------------------------APNF TRANSFORMATION FUNCTION---------------------------------------------
+  # Recursive method that transforms this sentence in its Anti-Prenex Normal Form (APNF) by recursively applying the
+  # transformation rules contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
+  # Output:
+  # the APNF form of this sentence
   def transformation_into_apnf
     self.simplification
     unless @operator.nil?
@@ -520,6 +638,10 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #--------------------------------------------DSNF TRANSFORMATION FUNCTION---------------------------------------------
+  # A method that transforms this sentence in its Divided Separated Normal Form (DSNF) by recursively applying the
+  # transformation rules contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
+  # Output:
+  # the DSNF form of this sentence
   def transformation_into_dsnf
     negated_sentence_in_apnf = self.negated.transformation_into_apnf
     initial = [Sentence.new(generate_new_symbol)]
@@ -543,6 +665,8 @@ class Sentence
 
   protected
   #------------------------------------------------ DSNF METHODS -------------------------------------------------------
+  # An assistive method for the transformation_into_dsnf method above that executes the 1st and 2nd transformation rules
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def first_step_dsnf(universe)
     is_done = false
     while not is_done
@@ -591,6 +715,8 @@ class Sentence
     end
   end
 
+  # An assistive method for the transformation_into_dsnf method above that executes the 6th transformation rule
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def second_step_dsnf(universe)
     is_done = false
     while not is_done
@@ -607,6 +733,9 @@ class Sentence
     end
   end
 
+  # Method that generates new symbol to be used in a clause of the DSNF form
+  # Output:
+  # a string containing the string form of a propositional symbol
   def generate_new_symbol
     new_symbol = Proposition::START_OF_NEW_SYMBOL + Proposition::NEW_SYMBOL_DEFAULT + @@new_symbol_count.to_s
     @@new_symbol_count = @@new_symbol_count.next
@@ -615,6 +744,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #------------------------------------------------CLASSIFYING SENTENCES------------------------------------------------
+  # Method that creates the array of the @classified instance variable with all the elements of this sentence classified
+  # by their own types
   def classify_sentence
     classified_sentence = []
     buffer = ""
@@ -659,6 +790,7 @@ class Sentence
     raise ArgumentError, "Number of parethesis is not right." unless (parenthesis_control == 0)
   end
 
+  # An assistive method that is used in the classify_sentence method above
   def look_ahead(kclass, index, char, buffer, classified_sentence, nivel_parentese)
     if @raw[index + 1] && kclass::REGEX.match( "#{buffer}#{char}#{@raw[index + 1]}" )
       buffer.concat char
@@ -670,6 +802,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #-----------------------------------------------------GROUPING--------------------------------------------------------
+  # Method that recursively creates the tree, i.e, by linking each sentence to its subsentences (right and left sentences)
+  # recursively.
   def group
     index = 1
     if is_primitive_sentence?
@@ -724,7 +858,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #--------------------------------------------------GROUPING RULES-----------------------------------------------------
-  #Exemplo: (a&b)
+
+  # Boolean method for creating the subsentences that tests if a sentence is of the form: (a&b)
   def is_primitive_sentence?
     index = 1
     if @classified[index].instance_of?(Proposition) || @classified[index].instance_of?(Constant)
@@ -737,7 +872,7 @@ class Sentence
     false
   end
 
-  #Exemplo: (a&b)->c
+  # Boolean method for creating the subsentences that tests if a sentence is of the form: (a&b)->c
   def is_left_derivative?
     index = 1
     if @classified[index].instance_of? Parenthesis
@@ -752,7 +887,7 @@ class Sentence
     false
   end
 
-  #Exemplo: a->(b&c)
+  # Boolean method for creating the subsentences that tests if a sentence is of the form: a->(b&c)
   def is_right_derivative?
     index = 1
     if @classified[index].instance_of?(Proposition) || @classified[index].instance_of?(Constant)
@@ -765,7 +900,7 @@ class Sentence
     false
   end
 
-  #Exemplo: ((a&b)->(c&d))
+  # Boolean method for creating the subsentences that tests if a sentence is of the form: ((a&b)->(c&d))
   def is_both_derivative?
     index = 1
     if @classified[index].instance_of?(Parenthesis)
@@ -780,7 +915,7 @@ class Sentence
     false
   end
 
-  #Exemplo: (~(a&b)) ou (~a)
+  # Boolean method for creating the subsentences that tests if a sentence is of the form: (~(a&b)) ou (~a)
   def is_negated_sentence?
     index = 1
     if @classified[index] && LogicalOperator::REGEX_UNARY.match(@classified[index].value)
@@ -789,6 +924,7 @@ class Sentence
     false
   end
 
+  # Assistive method for the group method above
   def index_closed_parenthesis(level,index=0)
     if index == 0
       @classified.find_index {|el| (el.is_close_parenthesis? if el.instance_of? Parenthesis) && el.level == level}
@@ -800,6 +936,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #-----------------------------------------------SIMPLIFICATION RULES--------------------------------------------------
+  # Method that has the simplification rules for conjunction
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def simplification_rules_for_conjunction
     if is_formula_and_formula?
       copy @left_sentence
@@ -820,6 +958,8 @@ class Sentence
     end
   end
 
+  # Method that has the simplification rules for disjunction
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def simplification_rules_for_disjunction
     if is_formula_or_formula?
       copy @left_sentence
@@ -840,6 +980,8 @@ class Sentence
     end
   end
 
+  # Method that has the simplification rules for negation
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def simplification_rules_for_negation
     if is_double_negation?
       copy @right_sentence.right_sentence
@@ -863,7 +1005,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #----------------------------------------------------APNF RULES-------------------------------------------------------
-  # α(¬(φ → ψ)) = (α(φ) ∧ α(¬ψ))
+  # Method that executes the following APNF transformation rule: α(¬(φ → ψ)) = (α(φ) ∧ α(¬ψ))
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def apnf_rules_for_negated_implication
     copy @right_sentence
     @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
@@ -872,7 +1015,8 @@ class Sentence
     update
   end
 
-  #α(¬(φ ∧ ψ)) = (α(¬φ) ∨ α(¬ψ))
+  # Method that executes the following APNF transformation rule: α(¬(φ ∧ ψ)) = (α(¬φ) ∨ α(¬ψ))
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def apnf_rules_for_negated_conjunction
     copy @right_sentence
     @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
@@ -882,7 +1026,8 @@ class Sentence
     update
   end
 
-  # α(¬(φ ∨ ψ)) = (α(¬φ) ∧ α(¬ψ))
+  # Method that executes the following APNF transformation rule: α(¬(φ ∨ ψ)) = (α(¬φ) ∧ α(¬ψ))
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def apnf_rules_for_negated_disjunction
     copy @right_sentence
     @operator = LogicalOperator.new(LogicalOperator::VALUES[:conjunction])
@@ -892,7 +1037,8 @@ class Sentence
     update
   end
 
-  # α(φ → ψ) = α(¬φ) ∨ α(ψ)
+  # Method that executes the following APNF transformation rule: α(φ → ψ) = α(¬φ) ∨ α(ψ)
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def apnf_rules_for_implication
     @operator = LogicalOperator.new(LogicalOperator::VALUES[:disjunction])
     @left_sentence = @left_sentence.negated
@@ -921,7 +1067,8 @@ class Sentence
   #---------------------------------------------------------------------------------------------------------------------
 
   #----------------------------------------------------DSNF RULES-------------------------------------------------------
-  #{t->(ψ1 ∧ ψ2)} −→ {t -> ψ1,t -> ψ2}
+  # Method that executes the following DSNF transformation rule: {t->(ψ1 ∧ ψ2)} −→ {t -> ψ1,t -> ψ2}
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def dsnf_rules_for_conjunction(clause, index, right_sentence_current_clause, universe)
     t = Sentence.new(clause.left_sentence)                               #pega o t
     formula1 = right_sentence_current_clause.left_sentence               #pega o φ1
@@ -932,7 +1079,8 @@ class Sentence
     universe.delete_at(index)                                                    #tira a sentença do conjunto
   end
 
-  #{t->(ψ1 ∨ ψ2)} −→ {t→(ψ1 ∨ t1),t1 -> ψ2}
+  # Method that executes the following DSNF transformation rule: {t->(ψ1 ∨ ψ2)} −→ {t→(ψ1 ∨ t1),t1 -> ψ2}
+  # contained in the paper that can be accessed in http://www.sciencedirect.com/science/article/pii/S1571066115000122
   def dsnf_rules_for_disjunction(clause, index, left_sentence, right_sentence, universe)
     t = Sentence.new(clause.left_sentence)                                #pega o t
     new_symbol = Sentence.new(generate_new_symbol)                        #gera novo simbolo t1

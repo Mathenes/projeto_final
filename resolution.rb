@@ -35,12 +35,12 @@ class Resolution
       @valid = resolution(dsnf[:I],dsnf[:U],@id)
     }
     if @valid
-      @file.puts "###### VALID! ######" if @valid
+      @file.puts "###### UNSATISFIABLE! ######" if @valid
       @valid_file = File.new("#{VALID_FILES_DIRECTORY}/valid_log_file_#{@@arq_count}.txt","w")
       print_valid_resolution
       @valid_file.close
     else
-      @file.puts "###### INVALID! ######" if @valid
+      @file.puts "###### SATISFIABLE! ######"
     end
     @file.puts "TOTAL TIME (IN SECS): #{@time.real}"
     @file.close
