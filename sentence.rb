@@ -1,6 +1,6 @@
 # This class operates over a sentence (formula).
 # A sentence has the following structure:
-# (See LogicalOperator, Proposition and Constant classes to find out what/how values can be inputed as an operator, a
+# (See LogicalOperator, Proposition and Constant classes to find out what values can be inputed as an operator, a
 # proposition and a constant, respectively)
 
 # It has the following instance variables:
@@ -21,13 +21,14 @@
 #             &
 #          /     \
 #         /       \
-#        ~         &
-#         \      /    \
-#          \   /      \
-#          x   |       ->
-#             / \      / \
-#            /   \    /   \
-#           0     1  x     z
+#        /         \
+#       ~           &
+#        \        /   \
+#         \     /       \
+#          x   |        ->
+#            /   \     /  \
+#           /     \   /    \
+#          0       1 x      z
 
 # Where,
 # - @father is nil
@@ -37,6 +38,23 @@
 # - @left_sentence is the subsentence represented by (~x). Recursively, in this right_sentence happens the same for its elements
 # - @operator is the logical_operator represented by &
 # - @level is 1
+
+#OBSERVATION:
+# INPUTING A SENTENCE
+# To input a sentence in the program the user needs to call the .new method in Sentence to start the initialize method in this class.
+# For example, to input a sentence the user should do:  sentence = Sentence.new("(a->b)")
+# where "(a->b)" is a valid sentence in this program.
+
+#VALID SENTENCES
+# The user has to follow some rules to input valid sentences in this program.
+# No parenthesis should be forgotten, even outer parenthesis - as well as parenthesis in double negation (~(~(a&b)).
+# Propositions musb be inserted following the regular expression [a-zA-Z].
+
+#EXAMPLES OF VALID SENTENCES
+# 1. (∼(∼(a -> b)))
+# 2. (p | (q | (r|s)))
+# 3. (aadB & chfg)
+# 4. ( (((a&b)|(c&d)) -> ((f&g)|(g&h))) -> (x&y) )
 
 
 class Sentence

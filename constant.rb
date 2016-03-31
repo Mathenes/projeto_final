@@ -1,5 +1,5 @@
 class Constant
-  attr_reader :valor
+  attr_reader :value
 
   VALUES = {bottom: '0', up: '1'}
   REGEX = /0|1/
